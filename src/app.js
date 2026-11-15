@@ -171,7 +171,7 @@ function complete(it) {
     const base = it.date && it.date > today() ? it.date : today();
     S.items.push({ ...it, id: uid(), done: false, doneAt: undefined, actual: 0, date: nextDate(base, it.recur) });
   }
-  return `Hotovo: ${it.title}. +${gain} bodů${bonus ? ` a bonus ${bonus}` : ''}.`;
+  return `Hotovo: ${it.title}. +${gain} bodů${bonus ? ` a bonus ${bonus}` : ''}.${archiveFromItem(it)}`;
 }
 
 /* ================= synchronizace s motorem ================= */
@@ -213,6 +213,7 @@ const Sync = {
       reshadow(); persistOk = Store.write(S);
       this.last = Date.now(); this.error = '';
       if (sig() !== before) softRender();
+      Arch.sync();
     } catch (e) { this.error = e && e.message === 'auth' ? 'auth' : 'net'; }
     this.busy = false; paintSync();
     if (this.dirty) this.plan(1500);
@@ -286,14 +287,16 @@ function paintTimer() {
 }
 
 /* ================= toast s možností vrátit ================= */
-function toast(msg, snap) {
+function toast(msg, snap, undo) {
   const t = $('#toast');
-  t.innerHTML = `<span>${esc(msg)}</span>${snap ? '<button type="button" data-action="undo">Vrátit</button>' : ''}`;
-  t.hidden = false; t._snap = snap || null;
+  t.innerHTML = `<span>${esc(msg)}</span>${snap || undo ? '<button type="button" data-action="undo">Vrátit</button>' : ''}`;
+  t.hidden = false; t._snap = snap || null; t._undo = undo || null;
   clearTimeout(ui.toastTimer);
   ui.toastTimer = setTimeout(() => { t.hidden = true; }, 7000);
 }
 const snapshot = () => JSON.stringify(S);
+
+/*__ARCHIVE__*/
 
 /* ================= vykreslení ================= */
 function chip(it) { const l = itemLabel(it); return l ? `<span class="chip" style="--c:${l.color}"><i></i>${esc(l.text)}</span>` : ''; }
@@ -496,7 +499,7 @@ function viewListky() {
 const SLICES = [
   ['Základ v prohlížeči', 'Dnes, přepínač prostředí, myšlenka dne, plán dne, spínač, týden s časy, úkoly s opakováním, barevné lístky.', true],
   ['Motor v Googlu a nasazení', 'Data v tvé Google Tabulce, stejný stav na telefonu i počítači, appka na ploše, práce i bez signálu.', false],
-  ['Archiv vysílání', 'Import 2 855 dílů, projekty a typy pořadů, účastníci, poznámky a přepisy u dílu.', false],
+  ['Archiv vysílání', 'Import z Notionu, projekty a typy pořadů, účastníci, poznámky a přepisy s časovými značkami.', true],
   ['YouTube a Herohero čísla', 'Analytika u každého dílu a live dashboard za všechny kanály.', false],
   ['Schránka a Research', 'Jedno místo, kam si věci přepošleš; Claude je roztřídí.', false],
   ['More Life moduly', 'MEDIUM 360, Fitness s Ourou, Finance, Trip Planner, BucketLIST, Journal, Books, Recipes.', false]
@@ -545,8 +548,9 @@ function viewNastaveni() {
   </div>`;
 }
 
-const VIEWS = { dnes: viewDnes, tyden: viewTyden, ukoly: viewUkoly, listky: viewListky, nastaveni: viewNastaveni };
-const NAV = [['dnes', 'Dnes'], ['tyden', 'Týden'], ['ukoly', 'Úkoly'], ['listky', 'Lístky'], ['nastaveni', 'Nastavení']];
+const VIEWS = { dnes: viewDnes, tyden: viewTyden, ukoly: viewUkoly, listky: viewListky, nastaveni: viewNastaveni, archiv: viewArchiv, dil: viewDil, vice: viewVice };
+const navList = () => [['dnes', 'Dnes'], ['tyden', 'Týden'], ['ukoly', 'Úkoly'], ['listky', 'Lístky'], ...(S.env === 'prace' ? [['archiv', 'Archiv']] : []), ['nastaveni', 'Nastavení']];
+const navOf = v => v === 'dil' ? 'archiv' : v;
 
 function applyTheme() {
   const dark = S.theme === 'dark' || (S.theme === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
@@ -560,16 +564,19 @@ function render() {
   const env = S.env, t = today();
   const openToday = S.items.filter(i => i.env === env && !i.done && i.date && i.date <= t).length;
   const noteN = S.notes.filter(n => n.env === env).length;
-  const counts = { dnes: openToday || '', listky: noteN || '', ukoly: S.items.filter(i => i.env === env && !i.done).length || '' };
+  const counts = { dnes: openToday || '', listky: noteN || '', ukoly: S.items.filter(i => i.env === env && !i.done).length || '', archiv: (env === 'prace' && Arch.list().length) || '' };
+  if (env !== 'prace' && (ui.view === 'archiv' || ui.view === 'dil')) ui.view = 'dnes';
+  const cur = navOf(ui.view);
   $('#envsw').innerHTML = Object.entries(ENVS).map(([k, e]) => `<button type="button" role="tab" data-action="env" data-env="${k}" aria-selected="${env === k}"><b>${e.name}</b><span>${e.sub}</span></button>`).join('');
-  $('#nav').innerHTML = NAV.map(([k, l]) => `<button type="button" data-action="nav" data-view="${k}"${ui.view === k ? ' aria-current="page"' : ''}>${l}${counts[k] ? `<span class="count">${counts[k]}</span>` : ''}</button>`).join('');
+  $('#nav').innerHTML = navList().map(([k, l]) => `<button type="button" data-action="nav" data-view="${k}"${cur === k ? ' aria-current="page"' : ''}>${l}${counts[k] ? `<span class="count">${counts[k]}</span>` : ''}</button>`).join('');
   $('#tabbar').innerHTML = [['dnes', 'Dnes'], ['tyden', 'Týden']].map(([k, l]) => `<button type="button" data-action="nav" data-view="${k}"${ui.view === k ? ' aria-current="page"' : ''}>${l}</button>`).join('')
     + `<button type="button" class="plus" data-action="note-new" aria-label="Nový lístek">+</button>`
-    + [['ukoly', 'Úkoly'], ['listky', 'Lístky']].map(([k, l]) => `<button type="button" data-action="nav" data-view="${k}"${ui.view === k ? ' aria-current="page"' : ''}>${l}</button>`).join('');
+    + [['ukoly', 'Úkoly'], ['vice', 'Další']].map(([k, l]) => `<button type="button" data-action="nav" data-view="${k}"${cur === k || (k === 'vice' && ['listky', 'archiv', 'nastaveni'].includes(cur)) ? ' aria-current="page"' : ''}>${l}</button>`).join('');
   const xp = S.game.xp, st = streak();
   $('#score').innerHTML = `<b>Úroveň ${level()}</b><div class="xpbar" role="img" aria-label="${xp % 100} ze 100 bodů do další úrovně"><i style="width:${xp % 100}%"></i></div>${xp} bodů celkem<br>${st ? `${st} ${plural(st, 'den', 'dny', 'dní')} v řadě` : 'Dnes ještě nic hotového'}<br><span data-sync>${esc(Sync.text())}</span>`;
   $('#tally').classList.toggle('on', !!S.run);
-  $('#view').innerHTML = VIEWS[ui.view]();
+  $('#view').innerHTML = (VIEWS[ui.view] || viewDnes)();
+  if (ui.view === 'dil') loadTranscript();
   clearInterval(tick);
   if (S.run) { paintTimer(); tick = setInterval(paintTimer, 1000); }
 }
@@ -676,7 +683,7 @@ document.addEventListener('click', e => {
       box.innerHTML = `<p class="sub" style="margin:12px 0 8px">Naskenuj foťákem telefonu, nebo si odkaz pošli. Obsahuje klíč k tvým datům, nikomu dalšímu ho nedávej.</p>${svg ? `<div class="qr">${svg}</div>` : ''}<textarea readonly id="linktext" aria-label="Propojovací odkaz" style="margin-top:10px;min-height:84px;font-size:14px">${esc(link)}</textarea><p style="margin-top:8px"><button class="btn" type="button" data-action="copy-link">Zkopírovat odkaz</button></p>`;
       box.hidden = false; break; }
     case 'copy-link': { const ta = $('#linktext'); if (!ta) break; ta.select(); (navigator.clipboard ? navigator.clipboard.writeText(ta.value) : Promise.reject()).then(() => toast('Odkaz je ve schránce.'), () => toast('Odkaz je označený. Zkopíruj ho ručně.')); break; }
-    case 'export': { const blob = new Blob([JSON.stringify(S, null, 2)], { type: 'application/json' }); const u = URL.createObjectURL(blob); const l = document.createElement('a'); l.href = u; l.download = `asistent-zaloha-${today()}.json`; document.body.appendChild(l); l.click(); l.remove(); setTimeout(() => URL.revokeObjectURL(u), 2000); break; }
+    case 'export': { const blob = new Blob([JSON.stringify({ ...S, archive: Arch.recs }, null, 2)], { type: 'application/json' }); const u = URL.createObjectURL(blob); const l = document.createElement('a'); l.href = u; l.download = `asistent-zaloha-${today()}.json`; document.body.appendChild(l); l.click(); l.remove(); setTimeout(() => URL.revokeObjectURL(u), 2000); break; }
   }
 });
 
@@ -721,7 +728,7 @@ document.addEventListener('change', e => {
     case 'capacity': S.capacity = Math.max(60, Math.min(1440, +el.value || 480)); save(); break;
     case 'colorname': { const v = el.value.trim(); if (v) S.colorNames[S.env][el.dataset.color] = v; else delete S.colorNames[S.env][el.dataset.color]; save(); break; }
     case 'dlg-env': { const f = el.closest('form'); f.elements.where.innerHTML = projectOptions(el.value, '', ''); if (f.elements.kind) { const kinds = el.value === 'prace' ? ['vysilani', 'ukol', 'blok'] : ['ukol', 'blok']; const cur = f.elements.kind.value; f.elements.kind.innerHTML = kinds.map(k => `<option value="${k}"${cur === k ? ' selected' : ''}>${KIND[k]}</option>`).join(''); } break; }
-    case 'import': { const file = el.files && el.files[0]; if (!file) break; const r = new FileReader(); r.onload = () => { try { const d = JSON.parse(String(r.result)); if (!d || !Array.isArray(d.items) || !Array.isArray(d.notes) || !Array.isArray(d.projects)) throw new Error('x'); const snap = snapshot(); const keep = { env: S.env, theme: S.theme }; S = { ...seed(), ...d, ...keep, v: 2 }; if (!S.tomb || !S.tomb.items) S.tomb = { items: {}, notes: {}, projects: {} }; save(); render(); toast('Záloha nahraná.', snap); } catch (err) { toast('Tenhle soubor není záloha Asistenta. Nic se nezměnilo.'); } }; r.readAsText(file); break; }
+    case 'import': { const file = el.files && el.files[0]; if (!file) break; const r = new FileReader(); r.onload = () => { try { const d = JSON.parse(String(r.result)); if (!d || !Array.isArray(d.items) || !Array.isArray(d.notes) || !Array.isArray(d.projects)) throw new Error('x'); const snap = snapshot(); const keep = { env: S.env, theme: S.theme }; const ar = d.archive; delete d.archive; S = { ...seed(), ...d, ...keep, v: 2 }; if (ar && typeof ar === 'object') Arch.putMany(Object.values(ar).filter(x => x && x.id)); if (!S.tomb || !S.tomb.items) S.tomb = { items: {}, notes: {}, projects: {} }; save(); render(); toast('Záloha nahraná.', snap); } catch (err) { toast('Tenhle soubor není záloha Asistenta. Nic se nezměnilo.'); } }; r.readAsText(file); break; }
   }
 });
 

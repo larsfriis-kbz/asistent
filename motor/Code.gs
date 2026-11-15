@@ -102,6 +102,9 @@ function handle_(req) {
     case 'sync': return sync_(req);
     case 'thoughts': return thoughts_(req);
     case 'putThoughts': return putThoughts_(req);
+    case 'archive': return archive_(req);
+    case 'tr-put': return trPut_(req);
+    case 'tr-get': return trGet_(req);
   }
   return { ok: false, error: 'op' };
 }
@@ -196,4 +199,82 @@ function putThoughts_(req) {
   writeRows_('myslenky', chunks_(JSON.stringify(req.thoughts)).map(function (c) { return [c]; }));
   PropertiesService.getScriptProperties().setProperty('THOUGHTS_N', String(req.thoughts.length));
   return { ok: true, n: req.thoughts.length };
+}
+
+/* ---------- archiv vysílání ----------
+   List `archiv`: id | u | rev | záznam (JSON). Řádek na díl, mění se jen dotčené řádky.
+   `rev` je pořadové číslo změny; appka si řekne o všechno novější než to, co už má. */
+var ARCH_MAX = 45000;
+function ensureRows_(sh, n) { if (sh.getMaxRows() < n) sh.insertRowsAfter(sh.getMaxRows(), n - sh.getMaxRows() + 200); }
+
+function archive_(req) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(25000);
+  try {
+    var sh = sheet_('archiv');
+    var last = sh.getLastRow();
+    var rows = last ? sh.getRange(1, 1, last, 4).getValues() : [];
+    var at = {};
+    rows.forEach(function (r, i) { at[String(r[0]).replace(/^~/, '')] = i; });
+    var p = PropertiesService.getScriptProperties();
+    var rev0 = Number(p.getProperty('ARCH_REV')) || 0, rev = rev0;
+    var changed = {}, orig = rows.length, rejected = [];
+    (Array.isArray(req.changes) ? req.changes : []).forEach(function (c) {
+      if (!c || typeof c.id !== 'string' || !c.id || c.id.length > 120) return;
+      var u = Number(c.u) || 0;
+      var json = JSON.stringify(c);
+      if (json.length > ARCH_MAX) { rejected.push(c.id); return; }
+      var i = at[c.id];
+      if (i !== undefined && Number(rows[i][1]) > u) return;
+      if (i !== undefined && Number(rows[i][1]) === u && join_([rows[i][3]]) === json) return;
+      rev += 1;
+      var row = ['~' + c.id, u, rev, '~' + json];
+      if (i === undefined) { at[c.id] = rows.length; rows.push(row); } else { rows[i] = row; changed[i] = true; }
+    });
+    var idx = Object.keys(changed).map(Number);
+    if (idx.length > 40) sh.getRange(1, 1, orig, 4).setValues(rows.slice(0, orig));
+    else idx.forEach(function (i) { sh.getRange(i + 1, 1, 1, 4).setValues([rows[i]]); });
+    if (rows.length > orig) { ensureRows_(sh, rows.length); sh.getRange(orig + 1, 1, rows.length - orig, 4).setValues(rows.slice(orig)); }
+    if (rev !== rev0) p.setProperty('ARCH_REV', String(rev));
+    var since = Number(req.since) || 0, out = [];
+    rows.forEach(function (r) { if (Number(r[2]) > since) out.push(JSON.parse(join_([r[3]]))); });
+    return { ok: true, rev: rev, records: out, rejected: rejected };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/* List `prepisy`: id | text po kusech. Přepis se stahuje, až když se díl otevře. */
+function trRow_(sh, id) {
+  var last = sh.getLastRow();
+  if (!last) return -1;
+  var ids = sh.getRange(1, 1, last, 1).getValues();
+  for (var i = 0; i < ids.length; i++) if (String(ids[i][0]).replace(/^~/, '') === id) return i + 1;
+  return -1;
+}
+function trPut_(req) {
+  if (typeof req.id !== 'string' || !req.id || typeof req.text !== 'string') return { ok: false, error: 'data' };
+  if (req.text.length > 2000000) return { ok: false, error: 'velky' };
+  var lock = LockService.getScriptLock();
+  lock.waitLock(25000);
+  try {
+    var sh = sheet_('prepisy');
+    var r = trRow_(sh, req.id);
+    var cells = ['~' + req.id].concat(req.text ? chunks_(req.text) : []);
+    if (r < 0) { r = sh.getLastRow() + 1; ensureRows_(sh, r); }
+    var w = Math.max(cells.length, sh.getLastColumn() || 1);
+    if (sh.getMaxColumns() < w) sh.insertColumnsAfter(sh.getMaxColumns(), w - sh.getMaxColumns());
+    while (cells.length < w) cells.push('');
+    sh.getRange(r, 1, 1, w).setValues([cells]);
+    return { ok: true };
+  } finally {
+    lock.releaseLock();
+  }
+}
+function trGet_(req) {
+  var sh = sheet_('prepisy');
+  var r = trRow_(sh, String(req.id || ''));
+  if (r < 0) return { ok: true, text: '' };
+  var w = sh.getLastColumn();
+  return { ok: true, text: w > 1 ? join_(sh.getRange(r, 2, 1, w - 1).getValues()[0]) : '' };
 }

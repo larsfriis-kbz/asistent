@@ -1,5 +1,5 @@
 /* Asistent – offline obal. Stránku bere z mezipaměti a na pozadí si stáhne novou verzi. */
-const CACHE = 'asistent-shell-e4a7eb4c53';
+const CACHE = 'asistent-shell-f83c03947d';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => {

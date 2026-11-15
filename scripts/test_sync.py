@@ -68,11 +68,11 @@ try:
         # --- A ho smaže, na B zmizí
         A.locator(".note", has_text="Lístek z telefonu").click(); A.click('[data-action="note-delete"]')
         A.wait_for_timeout(3200)
-        B.click('.iconbtn'); B.click('[data-action="sync-now"]'); B.wait_for_timeout(800); B.click('#tabbar [data-view="listky"]')
+        B.click('.iconbtn'); B.click('[data-action="sync-now"]'); B.wait_for_timeout(800); B.click('#tabbar [data-view="vice"]'); B.click('.menu [data-view="listky"]')
         assert B.locator(".note", has_text="Lístek z telefonu").count() == 0, "smazání se má přenést"
         # --- vrácení smazání na A přebije značku smazání
         A.click('#toast [data-action="undo"]'); A.wait_for_timeout(3200)
-        B.click('.iconbtn'); B.click('[data-action="sync-now"]'); B.wait_for_timeout(800); B.click('#tabbar [data-view="listky"]')
+        B.click('.iconbtn'); B.click('[data-action="sync-now"]'); B.wait_for_timeout(800); B.click('#tabbar [data-view="vice"]'); B.click('.menu [data-view="listky"]')
         assert B.locator(".note", has_text="Lístek z telefonu").count() == 1, "vrácený lístek se má vrátit i na B"
 
         # --- B bez spojení: práce pokračuje, po obnovení se dožene
@@ -83,7 +83,7 @@ try:
         B.click('.iconbtn'); assert "Bez spojení" in B.locator('main [data-sync]').inner_text()
         # mezitím A upraví stejný záznam (lístek) a B taky: vyhraje pozdější úprava
         nav(A, "listky"); A.locator(".note", has_text="Lístek z telefonu").click(); A.fill('#dlg textarea', "Lístek upravený na A"); A.click('#dlg button.primary'); A.wait_for_timeout(3000)
-        B.click('#tabbar [data-view="listky"]'); B.locator(".note", has_text="Lístek z telefonu").click(); B.fill('#dlg textarea', "Lístek upravený na B později"); B.click('#dlg button.primary')
+        B.click('#tabbar [data-view="vice"]'); B.click('.menu [data-view="listky"]'); B.locator(".note", has_text="Lístek z telefonu").click(); B.fill('#dlg textarea', "Lístek upravený na B později"); B.click('#dlg button.primary')
         B.unroute("**/exec"); B.wait_for_timeout(3500)
         sync_now(A); nav(A, "listky")
         assert A.locator(".note", has_text="Lístek upravený na B později").count() == 1 and A.locator(".note", has_text="upravený na A").count() == 0
