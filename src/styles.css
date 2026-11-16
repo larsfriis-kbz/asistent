@@ -84,7 +84,7 @@ main{padding:20px 16px 112px;max-width:1180px;width:100%;margin:0 auto;min-width
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:var(--r2);overflow:hidden;background:var(--surface)}
 .seg button{border:0;background:transparent;min-height:44px;padding:0 14px;color:var(--muted)}
 .seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg);font-weight:700}
-input[type=text],input[type=number],input[type=date],input[type=time],input[type=search],input[type=url],select,textarea{background:var(--surface);border:1px solid var(--line);border-radius:var(--r2);min-height:44px;padding:8px 12px;width:100%}
+input[type=text],input[type=number],input[type=date],input[type=time],input[type=search],input[type=url],input[type=month],select,textarea{background:var(--surface);border:1px solid var(--line);border-radius:var(--r2);min-height:44px;padding:8px 12px;width:100%}
 textarea{min-height:110px;resize:vertical;line-height:1.5}
 input:hover,select:hover,textarea:hover{border-color:var(--muted)}
 .chip{display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--muted);line-height:1.2}
@@ -285,3 +285,45 @@ dialog::backdrop{background:rgba(9,13,22,.6)}
 
 .motor{display:grid;grid-template-columns:1fr auto;gap:8px}
 .btnrow{display:flex;gap:8px;flex-wrap:wrap}
+
+/* moduly */
+.rec{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.rec:first-child{border-top:0}
+.rec-main{border:0;background:transparent;text-align:left;padding:4px 0;min-width:0;display:grid;gap:2px;color:inherit;font:inherit}
+.rec-sub{color:var(--muted);font-size:15px;overflow-wrap:anywhere}
+.rec.is-done .row-title{color:var(--muted);font-weight:400}
+.checks{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px;margin-top:12px}
+.checks.small{grid-template-columns:repeat(auto-fill,minmax(140px,1fr))}
+.tick{display:flex;align-items:center;gap:10px;min-height:48px;padding:8px 12px;border:1px solid var(--line);border-radius:var(--r2);background:var(--surface);text-align:left;font:inherit;font-weight:700;color:var(--ink)}
+.tick::before{content:"";flex:none;width:20px;height:20px;border:2px solid var(--muted);border-radius:6px}
+.tick[aria-pressed=true]{background:var(--accent-soft);border-color:var(--accent)}
+.tick[aria-pressed=true]::before{background:var(--accent);border-color:var(--accent);box-shadow:inset 0 0 0 3px var(--accent-soft)}
+.tick:disabled{opacity:1;cursor:default}
+.weekstrip{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.weekstrip button{display:grid;gap:2px;justify-items:center;min-height:52px;padding:6px 2px;border:1px solid var(--line);border-radius:var(--r2);background:var(--surface);font:inherit;color:var(--ink)}
+.weekstrip button span{color:var(--muted);font-size:14px}
+.weekstrip button b{font-size:15px;min-height:1.2em}
+.weekstrip button[aria-pressed=true]{border-color:var(--accent);background:var(--accent-soft)}
+.weekstrip button:disabled{opacity:.45}
+.dots{display:grid;grid-template-columns:repeat(30,1fr);gap:3px}
+.dots i{aspect-ratio:1;border-radius:2px;background:var(--line);opacity:.5}
+.dots i.l0{opacity:1}
+.dots i.l1{opacity:1;background:color-mix(in srgb,var(--accent) 30%,var(--line))}
+.dots i.l2{opacity:1;background:color-mix(in srgb,var(--accent) 55%,var(--line))}
+.dots i.l3{opacity:1;background:color-mix(in srgb,var(--accent) 80%,var(--line))}
+.dots i.l4{opacity:1;background:var(--accent)}
+.dots i.now{outline:2px solid var(--ink);outline-offset:1px}
+.motto{font-size:clamp(22px,3.4vw,34px);font-weight:700;line-height:1.15;margin:0 0 22px;max-width:22ch;text-wrap:balance}
+.h3{font-size:17px;margin:18px 0 0}
+.tablewrap{overflow-x:auto}
+.tbl{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.tbl th,.tbl td{padding:8px 10px 8px 0;border-top:1px solid var(--line);text-align:right;white-space:nowrap}
+.tbl th:first-child{text-align:left}
+.tbl thead th{border-top:0;color:var(--muted);font-weight:400;font-size:15px}
+.tbl tbody th{font-weight:400}
+.spark{width:100%;height:auto;color:var(--accent)}
+input[type=month]{font:inherit}
+.fold summary{cursor:pointer;list-style-position:outside;margin-left:18px}
+.fold summary h2{display:inline}
+.fold[open] summary{margin-bottom:10px}
+@media(max-width:520px){.weekstrip{gap:3px}.weekstrip button b{font-size:13px;white-space:nowrap}}

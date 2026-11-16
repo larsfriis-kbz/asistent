@@ -7,14 +7,14 @@
  * @OnlyCurrentDoc
  */
 var PUBLIC_URL = 'https://larsfriis-kbz.github.io/asistent/';
-var NAMES = ['items', 'notes', 'projects'];
+var NAMES = ['items', 'notes', 'projects', 'recs'];
 var CHUNK = 40000;
 var BACKUPS = 14;
 
 /* Sloučení dvou stavů. Stejný kód běží v appce i v motoru.
    Záznam vyhrává podle novějšího času úpravy `u`; smazání je značka v `tomb`. */
 function mergeState(a, b, now) {
-  var NAMES = ['items', 'notes', 'projects'];
+  var NAMES = ['items', 'notes', 'projects', 'recs'];
   var KEEP = 180 * 24 * 3600 * 1000;
   var out = { cols: {}, tomb: {}, meta: null };
   var both = [a || {}, b || {}];
@@ -40,7 +40,7 @@ function mergeState(a, b, now) {
 
 
 function onOpen() {
-  SpreadsheetApp.getUi().createMenu('Asistent').addItem('Propojit zařízení', 'showConnect').addToUi();
+  SpreadsheetApp.getUi().createMenu('Asistent').addItem('Propojit zařízení', 'showConnect').addItem('Klíč pro zkratky', 'showDrop').addToUi();
 }
 
 function key_() {
@@ -48,6 +48,24 @@ function key_() {
   var k = p.getProperty('KEY');
   if (!k) { k = (Utilities.getUuid() + Utilities.getUuid()).replace(/-/g, ''); p.setProperty('KEY', k); }
   return k;
+}
+
+/* Druhý klíč jen pro zápis: zkratky v iPhonu jím umí přidat věc do Schránky a denní čísla zdraví. Data jím přečíst nejde. */
+function dropKey_() {
+  var p = PropertiesService.getScriptProperties();
+  var k = p.getProperty('DROP_KEY');
+  if (!k) { k = Utilities.getUuid().replace(/-/g, ''); p.setProperty('DROP_KEY', k); }
+  return k;
+}
+function showDrop() {
+  var url = PropertiesService.getScriptProperties().getProperty('URL') || 'adresa webové aplikace končící na /exec';
+  var k = dropKey_();
+  var html = '<style>body{font:15px/1.5 system-ui,sans-serif;margin:0;padding:4px 2px}pre{background:#f1f1f1;padding:10px;border-radius:6px;white-space:pre-wrap;word-break:break-all}</style>' +
+    '<p>Ve Zkratkách použij akci Získat obsah URL, metoda POST, tělo požadavku JSON.</p><p><b>Adresa</b></p><pre>' + url + '</pre>' +
+    '<p><b>Věc do Schránky</b> (prostredi: prace nebo osobni)</p><pre>{"op":"drop","key":"' + k + '","text":"Vstup zkratky","prostredi":"prace"}</pre>' +
+    '<p><b>Zdraví za dnešek</b> (pošli jen čísla, která máš)</p><pre>{"op":"health","key":"' + k + '","kroky":8421,"spanek":7.5,"pripravenost":82,"vaha":80.4}</pre>' +
+    '<p>Tenhle klíč umí jen zapisovat. Tvoje data jím nikdo nepřečte.</p>';
+  SpreadsheetApp.getUi().showModalDialog(HtmlService.createHtmlOutput(html).setWidth(560).setHeight(470), 'Klíč pro zkratky v iPhonu');
 }
 
 function showConnect() {
@@ -80,13 +98,50 @@ function doPost(e) {
   var out;
   try {
     var req = JSON.parse(e.postData.contents);
-    if (req.op === 'ping' && !req.key) out = { ok: true, app: 'asistent', v: 1 };
+    if (req.op === 'ping' && !req.key) out = { ok: true, app: 'asistent', v: 2 };
+    else if (req.op === 'drop' || req.op === 'health') {
+      var k = String(req.key || '').replace(/\s/g, '');
+      out = same_(k, dropKey_()) || same_(k, key_()) ? write_(req) : { ok: false, error: 'auth' };
+    }
     else if (!same_(String(req.key || ''), key_())) out = { ok: false, error: 'auth' };
     else out = handle_(req);
   } catch (err) {
     out = { ok: false, error: 'server', detail: String((err && err.message) || err) };
   }
   return ContentService.createTextOutput(JSON.stringify(out)).setMimeType(ContentService.MimeType.JSON);
+}
+
+/* zápis ze zkratky: jeden záznam do kolekce recs, zbytek stavu se nemění */
+function write_(req) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(25000);
+  try {
+    var st = load_(), now = Date.now(), rec;
+    if (req.op === 'drop') {
+      var text = String(req.text || '').trim().slice(0, 5000);
+      if (!text) return { ok: false, error: 'empty', zprava: 'Chybí text.' };
+      var m = /https?:\/\/\S+/.exec(String(req.url || '') || text);
+      rec = { id: 'x' + Utilities.getUuid().replace(/-/g, '').slice(0, 12), mod: 'schranka', env: req.prostredi === 'osobni' ? 'osobni' : 'prace', text: text, url: m ? m[0] : '', stav: 'Nové', created: now, u: now };
+      st.cols.recs.push(rec);
+    } else {
+      var d = /^\d{4}-\d{2}-\d{2}$/.test(String(req.date || '')) ? String(req.date) : Utilities.formatDate(new Date(), 'Europe/Prague', 'yyyy-MM-dd');
+      var id = 'den-' + d, n = 0;
+      rec = null;
+      st.cols.recs.forEach(function (r) { if (r.id === id) rec = r; });
+      if (!rec) { rec = { id: id, mod: 'den', env: 'osobni', date: d, created: now }; st.cols.recs.push(rec); }
+      ['kroky', 'spanek', 'pripravenost', 'vaha'].forEach(function (f) {
+        var v = Number(String(req[f] == null ? '' : req[f]).replace(',', '.'));
+        if (req[f] !== '' && req[f] != null && isFinite(v) && v > 0) { rec[f] = v; n++; }
+      });
+      if (!n) return { ok: false, error: 'empty', zprava: 'Nepřišlo žádné číslo.' };
+      rec.u = now;
+      delete st.tomb.recs[id];
+    }
+    store_(st);
+    return { ok: true, id: rec.id };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 function same_(a, b) {
@@ -98,7 +153,7 @@ function same_(a, b) {
 
 function handle_(req) {
   switch (req.op) {
-    case 'ping': return { ok: true, app: 'asistent', v: 1, auth: true };
+    case 'ping': return { ok: true, app: 'asistent', v: 2, auth: true };
     case 'sync': return sync_(req);
     case 'thoughts': return thoughts_(req);
     case 'putThoughts': return putThoughts_(req);

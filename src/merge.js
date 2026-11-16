@@ -1,7 +1,7 @@
 /* Sloučení dvou stavů. Stejný kód běží v appce i v motoru.
    Záznam vyhrává podle novějšího času úpravy `u`; smazání je značka v `tomb`. */
 function mergeState(a, b, now) {
-  var NAMES = ['items', 'notes', 'projects'];
+  var NAMES = ['items', 'notes', 'projects', 'recs'];
   var KEEP = 180 * 24 * 3600 * 1000;
   var out = { cols: {}, tomb: {}, meta: null };
   var both = [a || {}, b || {}];

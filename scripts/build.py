@@ -24,8 +24,8 @@ for subset, rng in RANGES.items():
 
 merge = (src / "merge.js").read_text(encoding="utf-8")
 css = (src / "styles.css").read_text(encoding="utf-8").replace("/*__FONTS__*/", "\n".join(faces))
-js = (src / "app.js").read_text(encoding="utf-8").replace("/*__MERGE__*/", merge).replace("/*__ARCHIVE__*/", (src / "archive.js").read_text(encoding="utf-8"))
-assert "/*__ARCHIVE__*/" not in js
+js = (src / "app.js").read_text(encoding="utf-8").replace("/*__MERGE__*/", merge).replace("/*__ARCHIVE__*/", (src / "archive.js").read_text(encoding="utf-8")).replace("/*__MODULES__*/", (src / "modules.js").read_text(encoding="utf-8"))
+assert "/*__ARCHIVE__*/" not in js and "/*__MODULES__*/" not in js
 html = (src / "index.html").read_text(encoding="utf-8")
 qr = subprocess.run(["npx", "esbuild", "scripts/qr_entry.js", "--bundle", "--minify", "--format=iife", "--log-level=error"],
                     cwd=root, capture_output=True, text=True, check=True).stdout
@@ -43,7 +43,7 @@ seed = (root / "private/seed.json").read_text(encoding="utf-8"); json.loads(seed
 dist = root / "dist"
 shutil.rmtree(dist, ignore_errors=True); dist.mkdir()
 public = make("[]", "null")
-for word in ("KUDY BĚŽÍ", "Převléknout", "Proč to funguje:_"):
+for word in ("KUDY BĚŽÍ", "Převléknout", "Proč to funguje:_", "NESEŽEREŠ", "Kreatin"):
     assert word not in public, f"do veřejné verze proteklo: {word}"
 (dist / "index.html").write_text(public, encoding="utf-8")
 build_id = hashlib.sha256(public.encode()).hexdigest()[:10]

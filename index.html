@@ -104,7 +104,7 @@ main{padding:20px 16px 112px;max-width:1180px;width:100%;margin:0 auto;min-width
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:var(--r2);overflow:hidden;background:var(--surface)}
 .seg button{border:0;background:transparent;min-height:44px;padding:0 14px;color:var(--muted)}
 .seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg);font-weight:700}
-input[type=text],input[type=number],input[type=date],input[type=time],input[type=search],input[type=url],select,textarea{background:var(--surface);border:1px solid var(--line);border-radius:var(--r2);min-height:44px;padding:8px 12px;width:100%}
+input[type=text],input[type=number],input[type=date],input[type=time],input[type=search],input[type=url],input[type=month],select,textarea{background:var(--surface);border:1px solid var(--line);border-radius:var(--r2);min-height:44px;padding:8px 12px;width:100%}
 textarea{min-height:110px;resize:vertical;line-height:1.5}
 input:hover,select:hover,textarea:hover{border-color:var(--muted)}
 .chip{display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--muted);line-height:1.2}
@@ -306,6 +306,48 @@ dialog::backdrop{background:rgba(9,13,22,.6)}
 .motor{display:grid;grid-template-columns:1fr auto;gap:8px}
 .btnrow{display:flex;gap:8px;flex-wrap:wrap}
 
+/* moduly */
+.rec{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.rec:first-child{border-top:0}
+.rec-main{border:0;background:transparent;text-align:left;padding:4px 0;min-width:0;display:grid;gap:2px;color:inherit;font:inherit}
+.rec-sub{color:var(--muted);font-size:15px;overflow-wrap:anywhere}
+.rec.is-done .row-title{color:var(--muted);font-weight:400}
+.checks{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px;margin-top:12px}
+.checks.small{grid-template-columns:repeat(auto-fill,minmax(140px,1fr))}
+.tick{display:flex;align-items:center;gap:10px;min-height:48px;padding:8px 12px;border:1px solid var(--line);border-radius:var(--r2);background:var(--surface);text-align:left;font:inherit;font-weight:700;color:var(--ink)}
+.tick::before{content:"";flex:none;width:20px;height:20px;border:2px solid var(--muted);border-radius:6px}
+.tick[aria-pressed=true]{background:var(--accent-soft);border-color:var(--accent)}
+.tick[aria-pressed=true]::before{background:var(--accent);border-color:var(--accent);box-shadow:inset 0 0 0 3px var(--accent-soft)}
+.tick:disabled{opacity:1;cursor:default}
+.weekstrip{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.weekstrip button{display:grid;gap:2px;justify-items:center;min-height:52px;padding:6px 2px;border:1px solid var(--line);border-radius:var(--r2);background:var(--surface);font:inherit;color:var(--ink)}
+.weekstrip button span{color:var(--muted);font-size:14px}
+.weekstrip button b{font-size:15px;min-height:1.2em}
+.weekstrip button[aria-pressed=true]{border-color:var(--accent);background:var(--accent-soft)}
+.weekstrip button:disabled{opacity:.45}
+.dots{display:grid;grid-template-columns:repeat(30,1fr);gap:3px}
+.dots i{aspect-ratio:1;border-radius:2px;background:var(--line);opacity:.5}
+.dots i.l0{opacity:1}
+.dots i.l1{opacity:1;background:color-mix(in srgb,var(--accent) 30%,var(--line))}
+.dots i.l2{opacity:1;background:color-mix(in srgb,var(--accent) 55%,var(--line))}
+.dots i.l3{opacity:1;background:color-mix(in srgb,var(--accent) 80%,var(--line))}
+.dots i.l4{opacity:1;background:var(--accent)}
+.dots i.now{outline:2px solid var(--ink);outline-offset:1px}
+.motto{font-size:clamp(22px,3.4vw,34px);font-weight:700;line-height:1.15;margin:0 0 22px;max-width:22ch;text-wrap:balance}
+.h3{font-size:17px;margin:18px 0 0}
+.tablewrap{overflow-x:auto}
+.tbl{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.tbl th,.tbl td{padding:8px 10px 8px 0;border-top:1px solid var(--line);text-align:right;white-space:nowrap}
+.tbl th:first-child{text-align:left}
+.tbl thead th{border-top:0;color:var(--muted);font-weight:400;font-size:15px}
+.tbl tbody th{font-weight:400}
+.spark{width:100%;height:auto;color:var(--accent)}
+input[type=month]{font:inherit}
+.fold summary{cursor:pointer;list-style-position:outside;margin-left:18px}
+.fold summary h2{display:inline}
+.fold[open] summary{margin-bottom:10px}
+@media(max-width:520px){.weekstrip{gap:3px}.weekstrip button b{font-size:13px;white-space:nowrap}}
+
 </style>
 </head>
 <body>
@@ -377,14 +419,15 @@ const ENVS = { prace: { name: 'YouTube Jedi Master', sub: 'práce', color: '#D32
 
 let SEED = null;
 try { SEED = JSON.parse($('#seed-state').textContent || 'null'); } catch (e) { SEED = null; }
-const COLS = ['items', 'notes', 'projects'];
-const META = ['capacity', 'colorNames', 'activities', 'game', 'run', 'skip'];
+const COLS = ['items', 'notes', 'projects', 'recs'];
+const META = ['capacity', 'colorNames', 'activities', 'game', 'run', 'skip', 'm360'];
 
 function seed() {
   const t = today();
   const sat = addDays(mondayOf(t), 5) >= t ? addDays(mondayOf(t), 5) : addDays(mondayOf(t), 12);
-  const base = { v: 2, env: 'prace', theme: 'auto', capacity: 480, colorNames: { prace: {}, osobni: {} }, projects: [], notes: [], items: [], activities: {}, game: { xp: 0, days: [] }, run: null, skip: { date: t, prace: 0, osobni: 0 }, tomb: { items: {}, notes: {}, projects: {} }, metaU: 0 };
+  const base = { v: 2, env: 'prace', theme: 'auto', capacity: 480, colorNames: { prace: {}, osobni: {} }, projects: [], notes: [], items: [], recs: [], m360: { start: '', rules: [], misogi: '', motto: '' }, activities: {}, game: { xp: 0, days: [] }, run: null, skip: { date: t, prace: 0, osobni: 0 }, tomb: { items: {}, notes: {}, projects: {}, recs: {} }, metaU: 0 };
   if (SEED) {
+    if (SEED.m360) base.m360 = { ...base.m360, ...JSON.parse(JSON.stringify(SEED.m360)) };
     base.projects = JSON.parse(JSON.stringify(SEED.projects || []));
     base.notes = (SEED.notes || []).map(n => ({ ...n, created: Date.now() }));
     base.items = (SEED.items || []).map(i => ({ ...i, date: i.date === '@sobota' ? sat : i.date }));
@@ -397,6 +440,7 @@ let S = Store.read() || seed();
   const d = seed();
   for (const k of Object.keys(d)) if (S[k] === undefined) S[k] = (k === 'v') ? 1 : d[k];
   if (!S.colorNames.prace) S.colorNames = { prace: {}, osobni: {} };
+  if (!S.tomb.recs) S.tomb.recs = {};
   if (S.v < 2) {
     if (SEED) { /* první verze měla náhodná id projektů; sjednotit je s pevnými */
       const map = {};
@@ -434,7 +478,7 @@ reshadow();
 const save = () => { const ch = stamp(); persistOk = Store.write(S); if (ch) Sync.touch(); };
 
 
-const ui = { view: 'dnes', week: mondayOf(today()), weekFilter: 'vse', noteColor: 'zluta', fColor: '', fProject: '', showDone: false, why: false, target: null, toastTimer: 0 };
+const ui = { view: 'dnes', week: mondayOf(today()), weekFilter: 'vse', noteColor: 'zluta', fColor: '', fProject: '', showDone: false, mod: '', modF: {}, d360: '', why: false, target: null, toastTimer: 0 };
 
 /* ================= myšlenky ================= */
 let THOUGHTS = [], SEED_THOUGHTS = [];
@@ -511,7 +555,7 @@ function complete(it) {
 /* Sloučení dvou stavů. Stejný kód běží v appce i v motoru.
    Záznam vyhrává podle novějšího času úpravy `u`; smazání je značka v `tomb`. */
 function mergeState(a, b, now) {
-  var NAMES = ['items', 'notes', 'projects'];
+  var NAMES = ['items', 'notes', 'projects', 'recs'];
   var KEEP = 180 * 24 * 3600 * 1000;
   var out = { cols: {}, tomb: {}, meta: null };
   var both = [a || {}, b || {}];
@@ -543,12 +587,12 @@ function parseLink(text) {
   if (!m) return null;
   try { const o = b64u.dec(m[1]); return o && /^https:\/\/|^http:\/\/(localhost|127\.0\.0\.1)/.test(o.u || '') && o.k ? { url: o.u, key: o.k } : null; } catch (e) { return null; }
 }
-const toWire = () => ({ cols: { items: S.items, notes: S.notes, projects: S.projects }, tomb: S.tomb, meta: { ...metaObj(), u: S.metaU || 0 } });
+const toWire = () => ({ cols: Object.fromEntries(COLS.map(c => [c, S[c]])), tomb: S.tomb, meta: { ...metaObj(), u: S.metaU || 0 } });
 function applyWire(w) {
   for (const c of COLS) { S[c] = w.cols[c] || []; S.tomb[c] = (w.tomb && w.tomb[c]) || {}; }
   if (w.meta && (Number(w.meta.u) || 0) > (S.metaU || 0)) { for (const k of META) if (w.meta[k] !== undefined) S[k] = w.meta[k]; S.metaU = Number(w.meta.u) || 0; }
 }
-const sig = () => JSON.stringify([S.items, S.notes, S.projects, metaObj()]);
+const sig = () => JSON.stringify([S.items, S.notes, S.projects, S.recs, metaObj()]);
 const Sync = {
   cfg: null, busy: false, dirty: false, last: 0, error: '', timer: 0,
   init() { try { this.cfg = JSON.parse(localStorage.getItem(CKEY) || 'null'); } catch (e) { this.cfg = null; } },
@@ -557,9 +601,16 @@ const Sync = {
   touch() { this.dirty = true; this.plan(2000); },
   plan(ms) { if (!this.cfg) return; clearTimeout(this.timer); this.timer = setTimeout(() => this.now(), ms); },
   async call(body) {
-    const r = await fetch(this.cfg.url, { method: 'POST', body: JSON.stringify({ key: this.cfg.key, ...body }), redirect: 'follow' });
-    if (!r.ok) throw new Error('net');
-    return r.json();
+    /* Google odpověď občas ztratí. Všechny operace motoru jdou bezpečně zopakovat, proto tři pokusy. */
+    let err;
+    for (let i = 0; i < 3; i++) {
+      try {
+        const r = await fetch(this.cfg.url, { method: 'POST', body: JSON.stringify({ key: this.cfg.key, ...body }), redirect: 'follow' });
+        if (!r.ok) throw new Error('net');
+        return await r.json();
+      } catch (e) { err = e; if (i === 2 || !navigator.onLine) break; await new Promise(ok => setTimeout(ok, 600 * (i + 1))); }
+    }
+    throw err;
   },
   async now() {
     if (!this.cfg || this.busy) return;
@@ -981,7 +1032,7 @@ function archiveFromItem(it) {
 }
 
 function viewVice() {
-  const items = [['listky', 'Lístky', 'Barevné poznámky'], ...(S.env === 'prace' ? [['archiv', 'Archiv vysílání', `${Arch.list().length} dílů`]] : []), ['nastaveni', 'Nastavení', 'Motor, vzhled, barvy, projekty']];
+  const items = [['listky', 'Lístky', 'Barevné poznámky'], ['schranka', 'Schránka', inboxNew() ? `${inboxNew()} k roztřídění` : 'Věci na později'], ...(S.env === 'prace' ? [['archiv', 'Archiv vysílání', `${Arch.list().length} dílů`]] : [['m360', 'MEDIUM 360', m360Line()], ['moduly', 'Moduly', 'Fitness, Finance, Books, Recipes a další']]), ['nastaveni', 'Nastavení', 'Motor, vzhled, barvy, projekty']];
   return `<div class="head"><div><h1>Další</h1></div></div>
   <ul class="menu">${items.map(([k, l, d]) => `<li><button type="button" data-action="nav" data-view="${k}"><b>${l}</b><span>${d}</span></button></li>`).join('')}</ul>`;
 }
@@ -1072,6 +1123,244 @@ document.addEventListener('submit', e => {
   const ex = box && [...box.querySelectorAll('.pchip')].find(x => x.dataset.name === name);
   if (ex) ex.setAttribute('aria-pressed', 'true'); else if (box) box.insertAdjacentHTML('afterbegin', pchip(name, true));
   f.reset(); markSaved();
+});
+
+
+/* ================= moduly: Schránka, MEDIUM 360, Fitness a obecné seznamy =================
+   Všechno leží v jedné kolekci S.recs, záznam nese `mod`. Pole: [klíč, popisek, typ, povinné]. */
+const MODS = {
+  schranka: { env: '*', name: 'Schránka', one: 'Nová věc', desc: 'Co si sem pošleš, než to roztřídíš', title: 'text', status: ['stav', ['Nové', 'Vyřízené']],
+    fields: [['text', 'Co', 'area', 1], ['url', 'Odkaz', 'url']], sub: r => r.url || '' },
+  knihy: { env: 'osobni', name: 'Books', one: 'Nová kniha', desc: 'Co chceš číst, čteš a co sis z toho vzal', title: 'nazev', status: ['stav', ['Chci číst', 'Čtu', 'Přečteno']],
+    fields: [['nazev', 'Název', 'text', 1], ['autor', 'Autor', 'text'], ['hodnoceni', 'Hodnocení 1 až 5', 'num'], ['poznamka', 'Co si z ní beru', 'area']],
+    sub: r => [r.autor, r.hodnoceni ? `${r.hodnoceni}/5` : ''].filter(Boolean).join(', ') },
+  recepty: { env: 'osobni', name: 'Recipes', one: 'Nový recept', desc: 'Recepty a plán jídla na týden', title: 'nazev', status: ['stav', ['Vyzkoušet', 'Osvědčený']],
+    fields: [['nazev', 'Název', 'text', 1], ['plan', 'Naplánovat na den', 'date'], ['suroviny', 'Suroviny, jedna na řádek', 'area'], ['postup', 'Postup', 'area'], ['url', 'Odkaz', 'url']],
+    sub: r => r.plan ? `plán ${fmtShort(r.plan)}` : '' },
+  bucket: { env: 'osobni', name: 'Ultimate BucketLIST', one: 'Nová položka', desc: 'Věci, které chceš v životě stihnout', title: 'nazev', status: ['stav', ['Čeká', 'Splněno']],
+    fields: [['nazev', 'Co', 'text', 1], ['kdy', 'Do kdy', 'date'], ['poznamka', 'Poznámka', 'area']], sub: r => r.kdy ? `do ${fmtShort(r.kdy)} ${r.kdy.slice(0, 4)}` : '' },
+  cesty: { env: 'osobni', name: 'Trip Planner', one: 'Nová cesta', desc: 'Kam, kdy, za kolik a co zabalit', title: 'nazev', status: ['stav', ['Nápad', 'Naplánováno', 'Za mnou']],
+    fields: [['nazev', 'Kam', 'text', 1], ['od', 'Od', 'date'], ['do', 'Do', 'date'], ['rozpocet', 'Rozpočet v Kč', 'num'], ['plan', 'Plán a seznam věcí', 'area']],
+    sub: r => [r.od ? fmtShort(r.od) + (r.do ? ` až ${fmtShort(r.do)}` : '') : '', r.rozpocet ? kc(r.rozpocet) : ''].filter(Boolean).join(', ') },
+  finance: { env: 'osobni', name: 'Finance & Subscriptions', one: 'Nová platba', desc: 'Předplatná a pravidelné platby', title: 'nazev', status: ['stav', ['Platím', 'Zrušeno']],
+    fields: [['nazev', 'Za co', 'text', 1], ['castka', 'Částka v Kč', 'num', 1], ['obdobi', 'Jak často', 'sel:Měsíčně|Ročně'], ['dalsi', 'Další platba', 'date'], ['poznamka', 'Poznámka', 'area']],
+    sub: r => `${kc(r.castka)} ${r.obdobi === 'Ročně' ? 'ročně' : 'měsíčně'}${r.dalsi ? `, další ${fmtShort(r.dalsi)}` : ''}`,
+    summary: l => { const a = l.filter(r => r.stav !== 'Zrušeno'); const m = a.reduce((s, r) => s + (+r.castka || 0) / (r.obdobi === 'Ročně' ? 12 : 1), 0); return a.length ? `Měsíčně ${kc(m)}, ročně ${kc(m * 12)}.` : ''; } },
+  denik: { env: 'osobni', name: 'Journal', one: 'Nový zápis', desc: 'Pár vět za den', title: 'datum', sortDesc: 'datum',
+    fields: [['datum', 'Den', 'date', 1], ['nalada', 'Nálada 1 až 5', 'num'], ['text', 'Co se dělo', 'area', 1]],
+    titleFmt: r => cap(fmtShort(r.datum)) + ' ' + r.datum.slice(0, 4), sub: r => [r.nalada ? `nálada ${r.nalada}/5` : '', (r.text || '').split('\n')[0].slice(0, 90)].filter(Boolean).join(', ') },
+  levelup: { env: 'osobni', name: 'LEVEL UP', one: 'Nová dovednost', desc: 'Co se učíš a jaký je další krok', title: 'nazev', sortDesc: 'uroven',
+    fields: [['nazev', 'Dovednost', 'text', 1], ['uroven', 'Úroveň 1 až 10', 'num'], ['krok', 'Další krok', 'text'], ['poznamka', 'Poznámka', 'area']],
+    sub: r => [r.uroven ? `úroveň ${r.uroven}/10` : '', r.krok ? `další: ${r.krok}` : ''].filter(Boolean).join(', ') },
+  milnik: { env: 'osobni', name: 'Milníky', one: 'Nový milník', hidden: 1, title: 'nazev', status: ['stav', ['Čeká', 'Splněno']], fields: [['nazev', 'Milník', 'text', 1], ['kdy', 'Do kdy', 'date']], sub: r => r.kdy ? `do ${fmtShort(r.kdy)}` : '' },
+  dohoda: { env: 'osobni', name: 'Dohody, odměny a tresty', one: 'Nová dohoda', hidden: 1, title: 'text', fields: [['typ', 'Druh', 'sel:Dohoda|Odměna|Trest'], ['text', 'Co platí', 'area', 1]], sub: r => r.typ || 'Dohoda' },
+  mini: { env: 'osobni', name: 'Mini dobrodružství', one: 'Nové dobrodružství', hidden: 1, title: 'nazev', status: ['stav', ['Čeká', 'Splněno']], sortDesc: 'mesic', fields: [['nazev', 'Co', 'text', 1], ['mesic', 'Měsíc', 'month', 1]], sub: r => r.mesic || '' }
+};
+const kc = n => `${Math.round(+n || 0).toLocaleString('cs-CZ')} Kč`;
+const modEnvOk = m => MODS[m].env === '*' || MODS[m].env === S.env;
+const recsOf = mod => S.recs.filter(r => r.mod === mod && (MODS[mod].env !== '*' || r.env === S.env));
+const recTitle = (m, r) => (MODS[m].titleFmt ? MODS[m].titleFmt(r) : String(r[MODS[m].title] || '').split('\n')[0]) || 'Bez názvu';
+const inboxNew = () => recsOf('schranka').filter(r => r.stav !== 'Vyřízené').length;
+
+function sortRecs(mod, list) {
+  const d = MODS[mod], st = d.status;
+  return list.slice().sort((a, b) => (st ? st[1].indexOf(a[st[0]] || st[1][0]) - st[1].indexOf(b[st[0]] || st[1][0]) : 0)
+    || (d.sortDesc ? String(b[d.sortDesc] || '').localeCompare(String(a[d.sortDesc] || ''), 'cs', { numeric: true }) : 0) || (b.created || 0) - (a.created || 0));
+}
+function recRow(mod, r) {
+  const d = MODS[mod], st = d.status, cur = st ? (r[st[0]] || st[1][0]) : '', last = st && cur === st[1][st[1].length - 1];
+  const sub = d.sub ? d.sub(r) : '';
+  return `<li class="rec${last ? ' is-done' : ''}" data-id="${r.id}">
+    <button class="rec-main" type="button" data-action="mod-edit"><span class="row-title">${esc(recTitle(mod, r))}</span>${sub ? `<span class="rec-sub">${esc(sub)}</span>` : ''}</button>
+    ${st ? `<button class="row-go" type="button" data-action="mod-cycle" aria-label="Stav ${esc(cur)}. Klepnutím změníš.">${esc(cur)}</button>` : ''}
+  </li>`;
+}
+function modPanel(mod, limit) {
+  const d = MODS[mod], list = sortRecs(mod, recsOf(mod));
+  return `<section class="panel"><h2>${d.name}</h2>
+    ${list.length ? `<ul class="rows">${(limit ? list.slice(0, limit) : list).map(r => recRow(mod, r)).join('')}</ul>` : `<p class="empty">Zatím nic.</p>`}
+    <p style="margin-top:12px"><button class="btn" type="button" data-action="mod-new" data-mod="${mod}">${d.one}</button></p></section>`;
+}
+function viewMod(mod) {
+  mod = mod || ui.mod; const d = MODS[mod];
+  if (!d || !modEnvOk(mod)) return viewModuly();
+  const all = recsOf(mod), st = d.status, f = ui.modF[mod] || '';
+  const list = sortRecs(mod, f ? all.filter(r => (r[st[0]] || st[1][0]) === f) : all);
+  const sum = d.summary ? d.summary(all) : '';
+  return `<div class="head"><div><h1>${d.name}</h1><p>${d.desc || ''}${sum ? ` ${sum}` : ''}</p></div><button class="btn primary" type="button" data-action="mod-new" data-mod="${mod}">${d.one}</button></div>
+  ${mod === 'schranka' ? `<form class="panel" data-form="drop-add" style="display:grid;grid-template-columns:1fr auto;gap:8px;margin-bottom:22px"><input type="text" name="text" placeholder="Myšlenka, odkaz, cokoliv na později" aria-label="Nová věc do schránky" required><button class="btn primary">Uložit</button></form>` : ''}
+  ${st && all.length ? `<div class="seg" role="group" aria-label="Filtr" style="margin-bottom:14px"><button type="button" data-action="mod-filter" data-mod="${mod}" data-v="" aria-pressed="${!f}">Vše ${all.length}</button>${st[1].map(v => `<button type="button" data-action="mod-filter" data-mod="${mod}" data-v="${esc(v)}" aria-pressed="${f === v}">${esc(v)} ${all.filter(r => (r[st[0]] || st[1][0]) === v).length}</button>`).join('')}</div>` : ''}
+  <section class="panel">${list.length ? `<ul class="rows">${list.map(r => recRow(mod, r)).join('')}</ul>` : `<p class="empty">${all.length ? 'V tomhle filtru nic není.' : `Zatím prázdno. Začni tlačítkem ${d.one}.`}</p>`}</section>
+  ${mod === 'schranka' ? `<section class="panel" style="margin-top:22px"><h2>Posílání z iPhonu</h2><p class="sub">V Tabulce otevři nabídku Asistent a Klíč pro zkratky. Najdeš tam adresu a klíč, který umí jen zapisovat. Zkratka pak pošle text nebo odkaz ze sdílení rovnou sem.</p></section>` : ''}`;
+}
+function viewModuly() {
+  const mods = Object.keys(MODS).filter(m => !MODS[m].hidden && MODS[m].env === 'osobni');
+  return `<div class="head"><div><h1>Moduly</h1><p>More Life.</p></div></div>
+  <ul class="menu"><li><button type="button" data-action="nav" data-view="m360"><b>MEDIUM 360</b><span>${m360Line()}</span></button></li>
+  <li><button type="button" data-action="nav" data-view="fitness"><b>Fitness</b><span>Kroky, spánek, váha</span></button></li>
+  ${mods.map(m => `<li><button type="button" data-action="mod-open" data-mod="${m}"><b>${MODS[m].name}</b><span>${recsOf(m).length ? `${recsOf(m).length}× ` : ''}${MODS[m].desc}</span></button></li>`).join('')}</ul>`;
+}
+function fieldHTML(f, r, first) {
+  const [k, l, t, req] = f, v = r[k] ?? '', a = `name="${k}"${req ? ' required' : ''}${first ? ' autofocus' : ''}`;
+  if (t === 'area') return `<label>${l}<textarea ${a} style="min-height:110px">${esc(v)}</textarea></label>`;
+  if (t.startsWith('sel:')) return `<label>${l}<select ${a}>${t.slice(4).split('|').map(o => `<option${v === o ? ' selected' : ''}>${o}</option>`).join('')}</select></label>`;
+  return `<label>${l}<input type="${t === 'num' ? 'number' : t}" ${t === 'num' ? 'step="any" min="0"' : ''} ${a} value="${esc(v)}"></label>`;
+}
+function modDialog(mod, r, isNew) {
+  const d = MODS[mod];
+  openDialog(`<form class="dlg" data-form="mod-save" data-mod="${mod}" data-id="${isNew ? '' : r.id}">
+    <h2>${isNew ? d.one : d.name}</h2>
+    ${d.fields.map((f, i) => fieldHTML(f, r, isNew && i === 0)).join('')}
+    ${d.status ? `<label>Stav<select name="${d.status[0]}">${d.status[1].map(o => `<option${(r[d.status[0]] || d.status[1][0]) === o ? ' selected' : ''}>${o}</option>`).join('')}</select></label>` : ''}
+    <div class="foot">${isNew ? '<span></span>' : `<div><button class="btn danger" type="button" data-action="mod-delete" data-id="${r.id}">Smazat</button>${mod === 'schranka' ? `<button class="btn" type="button" data-action="drop-task" data-id="${r.id}">Udělat úkol</button><button class="btn" type="button" data-action="drop-note" data-id="${r.id}">Udělat lístek</button>` : ''}</div>`}
+      <div><button class="btn" type="button" data-action="dlg-close">Zavřít</button><button class="btn primary">Uložit</button></div></div>
+  </form>`);
+}
+
+/* ---------- zdraví: jeden záznam na den, id den-RRRR-MM-DD (stejné id píše i motor ze zkratky v iPhonu) ---------- */
+const dayRec = d => S.recs.find(r => r.id === 'den-' + d);
+function dayPut(d, patch) {
+  let r = dayRec(d);
+  if (!r) { r = { id: 'den-' + d, mod: 'den', env: 'osobni', date: d, created: Date.now() }; S.recs.push(r); }
+  for (const k of Object.keys(patch)) { if (patch[k] === '' || patch[k] == null) delete r[k]; else r[k] = patch[k]; }
+}
+const HEALTH = [['kroky', 'Kroky', v => Math.round(v).toLocaleString('cs-CZ')], ['spanek', 'Spánek', v => `${String(Math.round(v * 10) / 10).replace('.', ',')} h`], ['pripravenost', 'Oura', v => Math.round(v)], ['vaha', 'Váha', v => `${String(Math.round(v * 10) / 10).replace('.', ',')} kg`]];
+function viewFitness() {
+  const t = today(), days = Array.from({ length: 14 }, (_, i) => addDays(t, -i));
+  const have = days.some(d => dayRec(d));
+  const w = S.recs.filter(r => r.mod === 'den' && r.vaha).sort((a, b) => a.date.localeCompare(b.date)).slice(-30);
+  let chart = '';
+  if (w.length > 1) { const lo = Math.min(...w.map(r => +r.vaha)), hi = Math.max(...w.map(r => +r.vaha)), sp = (hi - lo) || 1;
+    chart = `<svg class="spark" viewBox="0 0 300 70" role="img" aria-label="Váha, posledních ${w.length} vážení, od ${lo} do ${hi} kg"><polyline fill="none" stroke="currentColor" stroke-width="2" points="${w.map((r, i) => `${(i / (w.length - 1) * 296 + 2).toFixed(1)},${(66 - (r.vaha - lo) / sp * 62).toFixed(1)}`).join(' ')}"/></svg>`; }
+  return `<div class="head"><div><h1>Fitness</h1><p>Kroky, spánek a skóre z Oury, váha. Tréninky zůstávají v GymRatu.</p></div></div>
+  <div class="cols"><div class="stack">
+    <section class="panel"><h2>Posledních 14 dní</h2>
+      ${have ? `<div class="tablewrap"><table class="tbl"><thead><tr><th>Den</th>${HEALTH.map(h => `<th>${h[1]}</th>`).join('')}</tr></thead><tbody>${days.map(d => { const r = dayRec(d) || {}; return `<tr><th>${cap(fmtShort(d))}</th>${HEALTH.map(h => `<td>${r[h[0]] ? h[2](+r[h[0]]) : ''}</td>`).join('')}</tr>`; }).join('')}</tbody></table></div>` : `<p class="empty">Zatím žádná data. Zapiš den ručně, nebo zapni zkratku v iPhonu.</p>`}
+    </section>
+    ${chart ? `<section class="panel"><h2>Váha</h2>${chart}</section>` : ''}
+  </div><div class="stack">
+    <section class="panel"><h2>Zapsat den</h2>
+      <form data-form="day-save" class="dlg" style="padding:0"><label>Den<input type="date" name="date" value="${t}" required></label>
+      <div class="two"><label>Váha v kg<input type="number" step="any" min="0" name="vaha"></label><label>Kroky<input type="number" min="0" name="kroky"></label></div>
+      <div class="two"><label>Spánek v hodinách<input type="number" step="any" min="0" name="spanek"></label><label>Skóre z Oury<input type="number" min="0" max="100" name="pripravenost"></label></div>
+      <p><button class="btn primary">Zapsat</button></p></form>
+    </section>
+    <section class="panel"><h2>Automaticky z iPhonu</h2><p class="sub">Oura zapisuje do aplikace Zdraví. Zkratka v iPhonu z ní jednou denně přečte kroky, spánek a váhu a pošle je motoru. Adresu, klíč jen pro zápis a přesný tvar zprávy najdeš v Tabulce: nabídka Asistent, Klíč pro zkratky.</p></section>
+  </div></div>`;
+}
+
+/* ---------- MEDIUM 360 ---------- */
+const M = () => S.m360;
+const m360Day = d => S.recs.find(r => r.id === 'd360-' + d);
+function m360Auto(rule, d) {
+  const h = dayRec(d); if (!h) return false;
+  if (/krok/i.test(rule.name) && +h.kroky >= 8000) return true;
+  if (/sp[aá]n/i.test(rule.name) && +h.spanek >= 7) return true;
+  return false;
+}
+const m360Has = (rule, d) => { const r = m360Day(d); return !!(r && r.done && r.done[rule.id]) || m360Auto(rule, d); };
+function m360Score(d) {
+  const main = M().rules.filter(r => r.g !== 's'), sup = M().rules.filter(r => r.g === 's');
+  const total = main.length + (sup.length ? 1 : 0); if (!total) return null;
+  const got = main.filter(r => m360Has(r, d)).length + (sup.length && sup.every(r => m360Has(r, d)) ? 1 : 0);
+  return { got, total, pct: got / total };
+}
+const m360N = d => M().start ? Math.round((parseYmd(d) - parseYmd(M().start)) / 864e5) + 1 : 0;
+function m360Line() {
+  if (!M().start) return 'Výzva na 360 dní. Zatím neběží.';
+  const n = m360N(today()), s = m360Score(today());
+  return n < 1 ? `Začíná ${fmtShort(M().start)}` : `Den ${Math.min(n, 360)} z 360${s ? `, dnes ${s.got} z ${s.total}` : ''}`;
+}
+function m360Card() {
+  if (S.env !== 'osobni' || !M().start || !M().rules.length) return '';
+  const t = today(), s = m360Score(t);
+  return `<section class="panel"><h2>MEDIUM 360</h2><p class="sub">${m360Line()}.</p>
+    <div class="checks">${M().rules.filter(r => r.g !== 's').map(r => ruleBtn(r, t)).join('')}</div>
+    <p style="margin-top:12px"><button class="btn" type="button" data-action="nav" data-view="m360">Otevřít celou výzvu</button></p></section>`;
+}
+const ruleBtn = (r, d) => { const auto = m360Auto(r, d); return `<button type="button" class="tick" data-action="m360-tick" data-rule="${r.id}" data-date="${d}" aria-pressed="${m360Has(r, d)}"${auto ? ' disabled title="Splněno podle dat z hodinek"' : ''}>${esc(r.name)}</button>`; };
+function view360() {
+  if (S.env !== 'osobni') return viewDnes();
+  const m = M(), t = today();
+  if (!m.start) return `<div class="head"><div><h1>MEDIUM 360</h1><p>Výzva na 360 dní s denními pravidly.</p></div></div>
+    <section class="panel"><h2>Kdy začínáš</h2><form data-form="m360-start" style="display:flex;gap:8px;flex-wrap:wrap"><input type="date" name="start" value="${t}" required aria-label="První den výzvy"><button class="btn primary">Spustit výzvu</button></form></section>`;
+  const sel = ui.d360 && ui.d360 <= t ? ui.d360 : t, n = m360N(t), s = m360Score(sel);
+  const wk = mondayOf(sel), main = m.rules.filter(r => r.g !== 's'), sup = m.rules.filter(r => r.g === 's');
+  const dots = Array.from({ length: 360 }, (_, i) => { const d = addDays(m.start, i); if (d > t) return '<i></i>'; const sc = m360Score(d); const lv = !sc ? 0 : sc.pct >= 1 ? 4 : sc.pct >= .75 ? 3 : sc.pct >= .5 ? 2 : sc.pct > 0 ? 1 : 0; return `<i class="l${lv}${d === t ? ' now' : ''}"></i>`; }).join('');
+  const past = Array.from({ length: Math.max(0, Math.min(n, 360)) }, (_, i) => m360Score(addDays(m.start, i))).filter(Boolean);
+  const full = past.filter(x => x.pct >= 1).length;
+  const food = recsOf('recepty').filter(r => r.plan && r.plan >= wk && r.plan <= addDays(wk, 6)).sort((a, b) => a.plan.localeCompare(b.plan));
+  const month = t.slice(0, 7), adv = recsOf('mini').find(r => r.mesic === month);
+  return `<div class="head"><div><h1>MEDIUM 360</h1><p>${n < 1 ? `Začíná ${fmtShort(m.start)}.` : `Den ${Math.min(n, 360)} z 360. Plných dní ${full}.`}</p></div></div>
+  ${m.motto ? `<p class="motto">${esc(m.motto)}</p>` : ''}
+  <div class="cols"><div class="stack">
+    <section class="panel"><h2>${sel === t ? 'Dnes' : cap(fmtShort(sel))}${s ? `: ${s.got} z ${s.total}` : ''}</h2>
+      <div class="weekstrip">${Array.from({ length: 7 }, (_, i) => { const d = addDays(wk, i), sc = d <= t ? m360Score(d) : null; return `<button type="button" data-action="m360-day" data-date="${d}" aria-pressed="${d === sel}"${d > t ? ' disabled' : ''}><span>${DAYS_SHORT[parseYmd(d).getDay()]}</span><b>${sc ? Math.round(sc.pct * 100) + ' %' : ''}</b></button>`; }).join('')}</div>
+      ${main.length ? `<div class="checks">${main.map(r => ruleBtn(r, sel)).join('')}</div>` : `<p class="empty">Žádná pravidla. Přidej první vpravo.</p>`}
+      ${sup.length ? `<h3 class="h3">Suplementy</h3><div class="checks small">${sup.map(r => ruleBtn(r, sel)).join('')}</div>` : ''}
+    </section>
+    <section class="panel"><h2>Celá výzva</h2><div class="dots" role="img" aria-label="${full} plných dní z ${past.length} uplynulých">${dots}</div><p class="sub" style="margin-top:10px">Jeden čtvereček je jeden den. Čím tmavší, tím víc pravidel splněno.</p></section>
+    ${food.length ? `<section class="panel"><h2>Jídlo tento týden</h2><ul class="rows">${food.map(r => recRow('recepty', r)).join('')}</ul></section>` : ''}
+  </div><div class="stack">
+    <section class="panel"><h2>MISOGI ${t.slice(0, 4)}</h2><p class="sub">Jedna věc, která definuje celý rok.</p>
+      <input type="text" value="${esc(m.misogi || '')}" data-change="m360-misogi" placeholder="Co to letos bude" aria-label="MISOGI"></section>
+    <section class="panel"><h2>Mini dobrodružství na tenhle měsíc</h2>${adv ? `<ul class="rows">${recRow('mini', adv)}</ul>` : `<p class="empty">Na tenhle měsíc nic. Jedno malé každý měsíc.</p>`}<p style="margin-top:12px"><button class="btn" type="button" data-action="mod-new" data-mod="mini">Naplánovat</button> <button class="btn quiet" type="button" data-action="mod-open" data-mod="mini">Všechna</button></p></section>
+    ${modPanel('milnik')}${modPanel('dohoda')}
+    <section class="panel"><details class="fold"><summary><h2>Pravidla a nastavení výzvy</h2></summary>
+      <ul class="rows">${m.rules.map(r => `<li class="rec"><span class="rec-main"><span class="row-title">${esc(r.name)}</span>${r.g === 's' ? '<span class="rec-sub">suplement</span>' : ''}</span><button class="row-go" type="button" data-action="m360-rule-del" data-rule="${r.id}" aria-label="Odebrat pravidlo ${esc(r.name)}">Odebrat</button></li>`).join('')}</ul>
+      <form data-form="m360-rule" style="display:grid;grid-template-columns:1fr auto auto;gap:8px;margin-top:10px"><input type="text" name="name" placeholder="Nové pravidlo" aria-label="Nové pravidlo" required><select name="g" aria-label="Druh"><option value="p">Pravidlo</option><option value="s">Suplement</option></select><button class="btn">Přidat</button></form>
+      <label style="display:grid;gap:6px;margin-top:14px;color:var(--muted);font-size:15px">Heslo výzvy<input type="text" value="${esc(m.motto || '')}" data-change="m360-motto" style="color:var(--ink);font-size:17px"></label>
+      <label style="display:grid;gap:6px;margin-top:10px;color:var(--muted);font-size:15px">První den<input type="date" value="${m.start}" data-change="m360-startdate" style="max-width:200px;color:var(--ink);font-size:17px"></label>
+    </details></section>
+  </div></div>`;
+}
+
+/* ---------- události modulů ---------- */
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-action^="mod-"],[data-action^="m360-"],[data-action^="drop-"]'); if (!b) return;
+  const a = b.dataset.action, li = b.closest('[data-id]'), id = b.dataset.id || (li && li.dataset.id), r = id && S.recs.find(x => x.id === id);
+  switch (a) {
+    case 'mod-open': ui.view = 'mod'; ui.mod = b.dataset.mod; render(); window.scrollTo(0, 0); break;
+    case 'mod-filter': ui.modF[b.dataset.mod] = b.dataset.v; render(); break;
+    case 'mod-new': { const mod = b.dataset.mod, pre = {}; if (mod === 'denik') pre.datum = today(); if (mod === 'mini') pre.mesic = today().slice(0, 7); modDialog(mod, pre, true); break; }
+    case 'mod-edit': if (r) modDialog(r.mod, r, false); break;
+    case 'mod-cycle': { if (!r) break; const st = MODS[r.mod].status; r[st[0]] = st[1][(st[1].indexOf(r[st[0]] || st[1][0]) + 1) % st[1].length]; save(); render(); break; }
+    case 'mod-delete': { const snap = snapshot(); S.recs = S.recs.filter(x => x.id !== id); save(); closeDialog(); render(); toast('Smazáno.', snap); break; }
+    case 'drop-task': case 'drop-note': { if (!r) break; const snap = snapshot(), text = r.text + (r.url ? `\n${r.url}` : '');
+      if (a === 'drop-task') S.items.push(blankItem({ env: r.env || S.env, kind: 'ukol', title: r.text.split('\n')[0].slice(0, 120), date: '' }));
+      else S.notes.push({ id: uid(), env: r.env || S.env, text, color: 'zluta', projectId: '', typeId: '', created: Date.now() });
+      r.stav = 'Vyřízené'; save(); closeDialog(); render(); toast(a === 'drop-task' ? 'Je z toho úkol.' : 'Je z toho lístek.', snap); break; }
+    case 'm360-day': ui.d360 = b.dataset.date; render(); break;
+    case 'm360-tick': { const d = b.dataset.date; let rec = m360Day(d);
+      if (!rec) { rec = { id: 'd360-' + d, mod: 'd360', env: 'osobni', date: d, done: {}, created: Date.now() }; S.recs.push(rec); }
+      rec.done = { ...rec.done }; if (rec.done[b.dataset.rule]) delete rec.done[b.dataset.rule]; else rec.done[b.dataset.rule] = 1;
+      save(); render(); break; }
+    case 'm360-rule-del': { const snap = snapshot(); S.m360 = { ...M(), rules: M().rules.filter(x => x.id !== b.dataset.rule) }; save(); render(); toast('Pravidlo odebráno. Odškrtnuté dny zůstaly.', snap); break; }
+  }
+});
+document.addEventListener('submit', e => {
+  const f = e.target.closest('[data-form^="mod-"],[data-form^="m360-"],[data-form^="drop-"],[data-form^="day-"]'); if (!f) return;
+  e.preventDefault();
+  const fd = new FormData(f), g = k => String(fd.get(k) ?? '').trim();
+  switch (f.dataset.form) {
+    case 'mod-save': { const mod = f.dataset.mod, d = MODS[mod]; let r = f.dataset.id && S.recs.find(x => x.id === f.dataset.id);
+      if (!r) { r = { id: uid(), mod, env: d.env === '*' ? S.env : d.env, created: Date.now() }; S.recs.push(r); }
+      for (const [k, , t] of d.fields) r[k] = t === 'num' ? (g(k) === '' ? '' : +g(k)) : g(k);
+      if (d.status) r[d.status[0]] = g(d.status[0]);
+      save(); closeDialog(); render(); break; }
+    case 'drop-add': { if (!g('text')) break; const u = /^https?:\/\/\S+$/.test(g('text')); S.recs.push({ id: uid(), mod: 'schranka', env: S.env, text: g('text'), url: u ? g('text') : '', stav: 'Nové', created: Date.now() }); save(); render(); break; }
+    case 'day-save': { const p = {}; for (const [k] of HEALTH) if (g(k) !== '') p[k] = +g(k); if (!Object.keys(p).length) { toast('Vyplň aspoň jedno číslo.'); break; } dayPut(g('date'), p); save(); render(); toast('Zapsáno.'); break; }
+    case 'm360-start': S.m360 = { ...M(), start: g('start') }; save(); render(); break;
+    case 'm360-rule': if (g('name')) { S.m360 = { ...M(), rules: [...M().rules, { id: uid(), name: g('name'), g: g('g') === 's' ? 's' : 'p' }] }; save(); render(); } break;
+  }
+});
+document.addEventListener('change', e => {
+  const c = e.target.dataset && e.target.dataset.change; if (!c || !c.startsWith('m360-')) return;
+  const v = e.target.value.trim();
+  if (c === 'm360-misogi') S.m360 = { ...M(), misogi: v };
+  if (c === 'm360-motto') S.m360 = { ...M(), motto: v };
+  if (c === 'm360-startdate' && v) S.m360 = { ...M(), start: v };
+  save(); if (c !== 'm360-misogi') render();
 });
 
 
@@ -1179,6 +1468,7 @@ function viewDnes() {
     </div>
     <div class="stack">
       <section class="panel"><h2>Spínač</h2><div class="switch">${sw}</div></section>
+      ${m360Card()}
       <section class="panel"><h2>Poslední lístky</h2>
         ${notes.length ? `<div class="board mini">${notes.map(noteHTML).join('')}</div>` : `<p class="empty">Žádný lístek. Napiš první.</p>`}
         <p style="margin-top:14px"><button class="btn" type="button" data-action="note-new">Nový lístek</button></p>
@@ -1278,8 +1568,8 @@ const SLICES = [
   ['Motor v Googlu a nasazení', 'Data v tvé Google Tabulce, stejný stav na telefonu i počítači, appka na ploše, práce i bez signálu.', false],
   ['Archiv vysílání', 'Import z Notionu, projekty a typy pořadů, účastníci, poznámky a přepisy s časovými značkami.', true],
   ['YouTube a Herohero čísla', 'Analytika u každého dílu a live dashboard za všechny kanály.', false],
-  ['Schránka a Research', 'Jedno místo, kam si věci přepošleš; Claude je roztřídí.', false],
-  ['More Life moduly', 'MEDIUM 360, Fitness s Ourou, Finance, Trip Planner, BucketLIST, Journal, Books, Recipes.', false]
+  ['Schránka a Research', 'Jedno místo, kam si věci pošleš z appky i z iPhonu. Z položky uděláš úkol nebo lístek.', true],
+  ['More Life moduly', 'MEDIUM 360, Fitness, Finance, Trip Planner, BucketLIST, Journal, Books, Recipes, LEVEL UP.', true]
 ];
 
 function viewNastaveni() {
@@ -1325,9 +1615,9 @@ function viewNastaveni() {
   </div>`;
 }
 
-const VIEWS = { dnes: viewDnes, tyden: viewTyden, ukoly: viewUkoly, listky: viewListky, nastaveni: viewNastaveni, archiv: viewArchiv, dil: viewDil, vice: viewVice };
-const navList = () => [['dnes', 'Dnes'], ['tyden', 'Týden'], ['ukoly', 'Úkoly'], ['listky', 'Lístky'], ...(S.env === 'prace' ? [['archiv', 'Archiv']] : []), ['nastaveni', 'Nastavení']];
-const navOf = v => v === 'dil' ? 'archiv' : v;
+const VIEWS = { dnes: viewDnes, tyden: viewTyden, ukoly: viewUkoly, listky: viewListky, nastaveni: viewNastaveni, archiv: viewArchiv, dil: viewDil, vice: viewVice, schranka: () => viewMod('schranka'), mod: () => viewMod(), moduly: viewModuly, m360: view360, fitness: viewFitness };
+const navList = () => [['dnes', 'Dnes'], ['tyden', 'Týden'], ['ukoly', 'Úkoly'], ['listky', 'Lístky'], ['schranka', 'Schránka'], ...(S.env === 'prace' ? [['archiv', 'Archiv']] : [['m360', 'MEDIUM 360'], ['moduly', 'Moduly']]), ['nastaveni', 'Nastavení']];
+const navOf = v => v === 'dil' ? 'archiv' : (v === 'mod' || v === 'fitness') ? 'moduly' : v;
 
 function applyTheme() {
   const dark = S.theme === 'dark' || (S.theme === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
@@ -1341,14 +1631,15 @@ function render() {
   const env = S.env, t = today();
   const openToday = S.items.filter(i => i.env === env && !i.done && i.date && i.date <= t).length;
   const noteN = S.notes.filter(n => n.env === env).length;
-  const counts = { dnes: openToday || '', listky: noteN || '', ukoly: S.items.filter(i => i.env === env && !i.done).length || '', archiv: (env === 'prace' && Arch.list().length) || '' };
+  const counts = { dnes: openToday || '', listky: noteN || '', ukoly: S.items.filter(i => i.env === env && !i.done).length || '', archiv: (env === 'prace' && Arch.list().length) || '', schranka: inboxNew() || '' };
   if (env !== 'prace' && (ui.view === 'archiv' || ui.view === 'dil')) ui.view = 'dnes';
+  if (env !== 'osobni' && ['m360', 'moduly', 'fitness', 'mod'].includes(ui.view)) ui.view = 'dnes';
   const cur = navOf(ui.view);
   $('#envsw').innerHTML = Object.entries(ENVS).map(([k, e]) => `<button type="button" role="tab" data-action="env" data-env="${k}" aria-selected="${env === k}"><b>${e.name}</b><span>${e.sub}</span></button>`).join('');
   $('#nav').innerHTML = navList().map(([k, l]) => `<button type="button" data-action="nav" data-view="${k}"${cur === k ? ' aria-current="page"' : ''}>${l}${counts[k] ? `<span class="count">${counts[k]}</span>` : ''}</button>`).join('');
   $('#tabbar').innerHTML = [['dnes', 'Dnes'], ['tyden', 'Týden']].map(([k, l]) => `<button type="button" data-action="nav" data-view="${k}"${ui.view === k ? ' aria-current="page"' : ''}>${l}</button>`).join('')
     + `<button type="button" class="plus" data-action="note-new" aria-label="Nový lístek">+</button>`
-    + [['ukoly', 'Úkoly'], ['vice', 'Další']].map(([k, l]) => `<button type="button" data-action="nav" data-view="${k}"${cur === k || (k === 'vice' && ['listky', 'archiv', 'nastaveni'].includes(cur)) ? ' aria-current="page"' : ''}>${l}</button>`).join('');
+    + [['ukoly', 'Úkoly'], ['vice', 'Další']].map(([k, l]) => `<button type="button" data-action="nav" data-view="${k}"${cur === k || (k === 'vice' && ['listky', 'archiv', 'nastaveni', 'schranka', 'm360', 'moduly'].includes(cur)) ? ' aria-current="page"' : ''}>${l}</button>`).join('');
   const xp = S.game.xp, st = streak();
   $('#score').innerHTML = `<b>Úroveň ${level()}</b><div class="xpbar" role="img" aria-label="${xp % 100} ze 100 bodů do další úrovně"><i style="width:${xp % 100}%"></i></div>${xp} bodů celkem<br>${st ? `${st} ${plural(st, 'den', 'dny', 'dní')} v řadě` : 'Dnes ještě nic hotového'}<br><span data-sync>${esc(Sync.text())}</span>`;
   $('#tally').classList.toggle('on', !!S.run);
@@ -1505,7 +1796,7 @@ document.addEventListener('change', e => {
     case 'capacity': S.capacity = Math.max(60, Math.min(1440, +el.value || 480)); save(); break;
     case 'colorname': { const v = el.value.trim(); if (v) S.colorNames[S.env][el.dataset.color] = v; else delete S.colorNames[S.env][el.dataset.color]; save(); break; }
     case 'dlg-env': { const f = el.closest('form'); f.elements.where.innerHTML = projectOptions(el.value, '', ''); if (f.elements.kind) { const kinds = el.value === 'prace' ? ['vysilani', 'ukol', 'blok'] : ['ukol', 'blok']; const cur = f.elements.kind.value; f.elements.kind.innerHTML = kinds.map(k => `<option value="${k}"${cur === k ? ' selected' : ''}>${KIND[k]}</option>`).join(''); } break; }
-    case 'import': { const file = el.files && el.files[0]; if (!file) break; const r = new FileReader(); r.onload = () => { try { const d = JSON.parse(String(r.result)); if (!d || !Array.isArray(d.items) || !Array.isArray(d.notes) || !Array.isArray(d.projects)) throw new Error('x'); const snap = snapshot(); const keep = { env: S.env, theme: S.theme }; const ar = d.archive; delete d.archive; S = { ...seed(), ...d, ...keep, v: 2 }; if (ar && typeof ar === 'object') Arch.putMany(Object.values(ar).filter(x => x && x.id)); if (!S.tomb || !S.tomb.items) S.tomb = { items: {}, notes: {}, projects: {} }; save(); render(); toast('Záloha nahraná.', snap); } catch (err) { toast('Tenhle soubor není záloha Asistenta. Nic se nezměnilo.'); } }; r.readAsText(file); break; }
+    case 'import': { const file = el.files && el.files[0]; if (!file) break; const r = new FileReader(); r.onload = () => { try { const d = JSON.parse(String(r.result)); if (!d || !Array.isArray(d.items) || !Array.isArray(d.notes) || !Array.isArray(d.projects)) throw new Error('x'); const snap = snapshot(); const keep = { env: S.env, theme: S.theme }; const ar = d.archive; delete d.archive; S = { ...seed(), ...d, ...keep, v: 2 }; if (ar && typeof ar === 'object') Arch.putMany(Object.values(ar).filter(x => x && x.id)); if (!S.tomb || !S.tomb.items) S.tomb = { items: {}, notes: {}, projects: {}, recs: {} }; if (!S.tomb.recs) S.tomb.recs = {}; save(); render(); toast('Záloha nahraná.', snap); } catch (err) { toast('Tenhle soubor není záloha Asistenta. Nic se nezměnilo.'); } }; r.readAsText(file); break; }
   }
 });
 

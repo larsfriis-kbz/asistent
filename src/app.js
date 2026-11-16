@@ -44,14 +44,15 @@ const ENVS = { prace: { name: 'YouTube Jedi Master', sub: 'práce', color: '#D32
 
 let SEED = null;
 try { SEED = JSON.parse($('#seed-state').textContent || 'null'); } catch (e) { SEED = null; }
-const COLS = ['items', 'notes', 'projects'];
-const META = ['capacity', 'colorNames', 'activities', 'game', 'run', 'skip'];
+const COLS = ['items', 'notes', 'projects', 'recs'];
+const META = ['capacity', 'colorNames', 'activities', 'game', 'run', 'skip', 'm360'];
 
 function seed() {
   const t = today();
   const sat = addDays(mondayOf(t), 5) >= t ? addDays(mondayOf(t), 5) : addDays(mondayOf(t), 12);
-  const base = { v: 2, env: 'prace', theme: 'auto', capacity: 480, colorNames: { prace: {}, osobni: {} }, projects: [], notes: [], items: [], activities: {}, game: { xp: 0, days: [] }, run: null, skip: { date: t, prace: 0, osobni: 0 }, tomb: { items: {}, notes: {}, projects: {} }, metaU: 0 };
+  const base = { v: 2, env: 'prace', theme: 'auto', capacity: 480, colorNames: { prace: {}, osobni: {} }, projects: [], notes: [], items: [], recs: [], m360: { start: '', rules: [], misogi: '', motto: '' }, activities: {}, game: { xp: 0, days: [] }, run: null, skip: { date: t, prace: 0, osobni: 0 }, tomb: { items: {}, notes: {}, projects: {}, recs: {} }, metaU: 0 };
   if (SEED) {
+    if (SEED.m360) base.m360 = { ...base.m360, ...JSON.parse(JSON.stringify(SEED.m360)) };
     base.projects = JSON.parse(JSON.stringify(SEED.projects || []));
     base.notes = (SEED.notes || []).map(n => ({ ...n, created: Date.now() }));
     base.items = (SEED.items || []).map(i => ({ ...i, date: i.date === '@sobota' ? sat : i.date }));
@@ -64,6 +65,7 @@ let S = Store.read() || seed();
   const d = seed();
   for (const k of Object.keys(d)) if (S[k] === undefined) S[k] = (k === 'v') ? 1 : d[k];
   if (!S.colorNames.prace) S.colorNames = { prace: {}, osobni: {} };
+  if (!S.tomb.recs) S.tomb.recs = {};
   if (S.v < 2) {
     if (SEED) { /* první verze měla náhodná id projektů; sjednotit je s pevnými */
       const map = {};
@@ -101,7 +103,7 @@ reshadow();
 const save = () => { const ch = stamp(); persistOk = Store.write(S); if (ch) Sync.touch(); };
 
 
-const ui = { view: 'dnes', week: mondayOf(today()), weekFilter: 'vse', noteColor: 'zluta', fColor: '', fProject: '', showDone: false, why: false, target: null, toastTimer: 0 };
+const ui = { view: 'dnes', week: mondayOf(today()), weekFilter: 'vse', noteColor: 'zluta', fColor: '', fProject: '', showDone: false, mod: '', modF: {}, d360: '', why: false, target: null, toastTimer: 0 };
 
 /* ================= myšlenky ================= */
 let THOUGHTS = [], SEED_THOUGHTS = [];
@@ -184,12 +186,12 @@ function parseLink(text) {
   if (!m) return null;
   try { const o = b64u.dec(m[1]); return o && /^https:\/\/|^http:\/\/(localhost|127\.0\.0\.1)/.test(o.u || '') && o.k ? { url: o.u, key: o.k } : null; } catch (e) { return null; }
 }
-const toWire = () => ({ cols: { items: S.items, notes: S.notes, projects: S.projects }, tomb: S.tomb, meta: { ...metaObj(), u: S.metaU || 0 } });
+const toWire = () => ({ cols: Object.fromEntries(COLS.map(c => [c, S[c]])), tomb: S.tomb, meta: { ...metaObj(), u: S.metaU || 0 } });
 function applyWire(w) {
   for (const c of COLS) { S[c] = w.cols[c] || []; S.tomb[c] = (w.tomb && w.tomb[c]) || {}; }
   if (w.meta && (Number(w.meta.u) || 0) > (S.metaU || 0)) { for (const k of META) if (w.meta[k] !== undefined) S[k] = w.meta[k]; S.metaU = Number(w.meta.u) || 0; }
 }
-const sig = () => JSON.stringify([S.items, S.notes, S.projects, metaObj()]);
+const sig = () => JSON.stringify([S.items, S.notes, S.projects, S.recs, metaObj()]);
 const Sync = {
   cfg: null, busy: false, dirty: false, last: 0, error: '', timer: 0,
   init() { try { this.cfg = JSON.parse(localStorage.getItem(CKEY) || 'null'); } catch (e) { this.cfg = null; } },
@@ -198,9 +200,16 @@ const Sync = {
   touch() { this.dirty = true; this.plan(2000); },
   plan(ms) { if (!this.cfg) return; clearTimeout(this.timer); this.timer = setTimeout(() => this.now(), ms); },
   async call(body) {
-    const r = await fetch(this.cfg.url, { method: 'POST', body: JSON.stringify({ key: this.cfg.key, ...body }), redirect: 'follow' });
-    if (!r.ok) throw new Error('net');
-    return r.json();
+    /* Google odpověď občas ztratí. Všechny operace motoru jdou bezpečně zopakovat, proto tři pokusy. */
+    let err;
+    for (let i = 0; i < 3; i++) {
+      try {
+        const r = await fetch(this.cfg.url, { method: 'POST', body: JSON.stringify({ key: this.cfg.key, ...body }), redirect: 'follow' });
+        if (!r.ok) throw new Error('net');
+        return await r.json();
+      } catch (e) { err = e; if (i === 2 || !navigator.onLine) break; await new Promise(ok => setTimeout(ok, 600 * (i + 1))); }
+    }
+    throw err;
   },
   async now() {
     if (!this.cfg || this.busy) return;
@@ -297,6 +306,8 @@ function toast(msg, snap, undo) {
 const snapshot = () => JSON.stringify(S);
 
 /*__ARCHIVE__*/
+
+/*__MODULES__*/
 
 /* ================= vykreslení ================= */
 function chip(it) { const l = itemLabel(it); return l ? `<span class="chip" style="--c:${l.color}"><i></i>${esc(l.text)}</span>` : ''; }
@@ -402,6 +413,7 @@ function viewDnes() {
     </div>
     <div class="stack">
       <section class="panel"><h2>Spínač</h2><div class="switch">${sw}</div></section>
+      ${m360Card()}
       <section class="panel"><h2>Poslední lístky</h2>
         ${notes.length ? `<div class="board mini">${notes.map(noteHTML).join('')}</div>` : `<p class="empty">Žádný lístek. Napiš první.</p>`}
         <p style="margin-top:14px"><button class="btn" type="button" data-action="note-new">Nový lístek</button></p>
@@ -501,8 +513,8 @@ const SLICES = [
   ['Motor v Googlu a nasazení', 'Data v tvé Google Tabulce, stejný stav na telefonu i počítači, appka na ploše, práce i bez signálu.', false],
   ['Archiv vysílání', 'Import z Notionu, projekty a typy pořadů, účastníci, poznámky a přepisy s časovými značkami.', true],
   ['YouTube a Herohero čísla', 'Analytika u každého dílu a live dashboard za všechny kanály.', false],
-  ['Schránka a Research', 'Jedno místo, kam si věci přepošleš; Claude je roztřídí.', false],
-  ['More Life moduly', 'MEDIUM 360, Fitness s Ourou, Finance, Trip Planner, BucketLIST, Journal, Books, Recipes.', false]
+  ['Schránka a Research', 'Jedno místo, kam si věci pošleš z appky i z iPhonu. Z položky uděláš úkol nebo lístek.', true],
+  ['More Life moduly', 'MEDIUM 360, Fitness, Finance, Trip Planner, BucketLIST, Journal, Books, Recipes, LEVEL UP.', true]
 ];
 
 function viewNastaveni() {
@@ -548,9 +560,9 @@ function viewNastaveni() {
   </div>`;
 }
 
-const VIEWS = { dnes: viewDnes, tyden: viewTyden, ukoly: viewUkoly, listky: viewListky, nastaveni: viewNastaveni, archiv: viewArchiv, dil: viewDil, vice: viewVice };
-const navList = () => [['dnes', 'Dnes'], ['tyden', 'Týden'], ['ukoly', 'Úkoly'], ['listky', 'Lístky'], ...(S.env === 'prace' ? [['archiv', 'Archiv']] : []), ['nastaveni', 'Nastavení']];
-const navOf = v => v === 'dil' ? 'archiv' : v;
+const VIEWS = { dnes: viewDnes, tyden: viewTyden, ukoly: viewUkoly, listky: viewListky, nastaveni: viewNastaveni, archiv: viewArchiv, dil: viewDil, vice: viewVice, schranka: () => viewMod('schranka'), mod: () => viewMod(), moduly: viewModuly, m360: view360, fitness: viewFitness };
+const navList = () => [['dnes', 'Dnes'], ['tyden', 'Týden'], ['ukoly', 'Úkoly'], ['listky', 'Lístky'], ['schranka', 'Schránka'], ...(S.env === 'prace' ? [['archiv', 'Archiv']] : [['m360', 'MEDIUM 360'], ['moduly', 'Moduly']]), ['nastaveni', 'Nastavení']];
+const navOf = v => v === 'dil' ? 'archiv' : (v === 'mod' || v === 'fitness') ? 'moduly' : v;
 
 function applyTheme() {
   const dark = S.theme === 'dark' || (S.theme === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
@@ -564,14 +576,15 @@ function render() {
   const env = S.env, t = today();
   const openToday = S.items.filter(i => i.env === env && !i.done && i.date && i.date <= t).length;
   const noteN = S.notes.filter(n => n.env === env).length;
-  const counts = { dnes: openToday || '', listky: noteN || '', ukoly: S.items.filter(i => i.env === env && !i.done).length || '', archiv: (env === 'prace' && Arch.list().length) || '' };
+  const counts = { dnes: openToday || '', listky: noteN || '', ukoly: S.items.filter(i => i.env === env && !i.done).length || '', archiv: (env === 'prace' && Arch.list().length) || '', schranka: inboxNew() || '' };
   if (env !== 'prace' && (ui.view === 'archiv' || ui.view === 'dil')) ui.view = 'dnes';
+  if (env !== 'osobni' && ['m360', 'moduly', 'fitness', 'mod'].includes(ui.view)) ui.view = 'dnes';
   const cur = navOf(ui.view);
   $('#envsw').innerHTML = Object.entries(ENVS).map(([k, e]) => `<button type="button" role="tab" data-action="env" data-env="${k}" aria-selected="${env === k}"><b>${e.name}</b><span>${e.sub}</span></button>`).join('');
   $('#nav').innerHTML = navList().map(([k, l]) => `<button type="button" data-action="nav" data-view="${k}"${cur === k ? ' aria-current="page"' : ''}>${l}${counts[k] ? `<span class="count">${counts[k]}</span>` : ''}</button>`).join('');
   $('#tabbar').innerHTML = [['dnes', 'Dnes'], ['tyden', 'Týden']].map(([k, l]) => `<button type="button" data-action="nav" data-view="${k}"${ui.view === k ? ' aria-current="page"' : ''}>${l}</button>`).join('')
     + `<button type="button" class="plus" data-action="note-new" aria-label="Nový lístek">+</button>`
-    + [['ukoly', 'Úkoly'], ['vice', 'Další']].map(([k, l]) => `<button type="button" data-action="nav" data-view="${k}"${cur === k || (k === 'vice' && ['listky', 'archiv', 'nastaveni'].includes(cur)) ? ' aria-current="page"' : ''}>${l}</button>`).join('');
+    + [['ukoly', 'Úkoly'], ['vice', 'Další']].map(([k, l]) => `<button type="button" data-action="nav" data-view="${k}"${cur === k || (k === 'vice' && ['listky', 'archiv', 'nastaveni', 'schranka', 'm360', 'moduly'].includes(cur)) ? ' aria-current="page"' : ''}>${l}</button>`).join('');
   const xp = S.game.xp, st = streak();
   $('#score').innerHTML = `<b>Úroveň ${level()}</b><div class="xpbar" role="img" aria-label="${xp % 100} ze 100 bodů do další úrovně"><i style="width:${xp % 100}%"></i></div>${xp} bodů celkem<br>${st ? `${st} ${plural(st, 'den', 'dny', 'dní')} v řadě` : 'Dnes ještě nic hotového'}<br><span data-sync>${esc(Sync.text())}</span>`;
   $('#tally').classList.toggle('on', !!S.run);
@@ -728,7 +741,7 @@ document.addEventListener('change', e => {
     case 'capacity': S.capacity = Math.max(60, Math.min(1440, +el.value || 480)); save(); break;
     case 'colorname': { const v = el.value.trim(); if (v) S.colorNames[S.env][el.dataset.color] = v; else delete S.colorNames[S.env][el.dataset.color]; save(); break; }
     case 'dlg-env': { const f = el.closest('form'); f.elements.where.innerHTML = projectOptions(el.value, '', ''); if (f.elements.kind) { const kinds = el.value === 'prace' ? ['vysilani', 'ukol', 'blok'] : ['ukol', 'blok']; const cur = f.elements.kind.value; f.elements.kind.innerHTML = kinds.map(k => `<option value="${k}"${cur === k ? ' selected' : ''}>${KIND[k]}</option>`).join(''); } break; }
-    case 'import': { const file = el.files && el.files[0]; if (!file) break; const r = new FileReader(); r.onload = () => { try { const d = JSON.parse(String(r.result)); if (!d || !Array.isArray(d.items) || !Array.isArray(d.notes) || !Array.isArray(d.projects)) throw new Error('x'); const snap = snapshot(); const keep = { env: S.env, theme: S.theme }; const ar = d.archive; delete d.archive; S = { ...seed(), ...d, ...keep, v: 2 }; if (ar && typeof ar === 'object') Arch.putMany(Object.values(ar).filter(x => x && x.id)); if (!S.tomb || !S.tomb.items) S.tomb = { items: {}, notes: {}, projects: {} }; save(); render(); toast('Záloha nahraná.', snap); } catch (err) { toast('Tenhle soubor není záloha Asistenta. Nic se nezměnilo.'); } }; r.readAsText(file); break; }
+    case 'import': { const file = el.files && el.files[0]; if (!file) break; const r = new FileReader(); r.onload = () => { try { const d = JSON.parse(String(r.result)); if (!d || !Array.isArray(d.items) || !Array.isArray(d.notes) || !Array.isArray(d.projects)) throw new Error('x'); const snap = snapshot(); const keep = { env: S.env, theme: S.theme }; const ar = d.archive; delete d.archive; S = { ...seed(), ...d, ...keep, v: 2 }; if (ar && typeof ar === 'object') Arch.putMany(Object.values(ar).filter(x => x && x.id)); if (!S.tomb || !S.tomb.items) S.tomb = { items: {}, notes: {}, projects: {}, recs: {} }; if (!S.tomb.recs) S.tomb.recs = {}; save(); render(); toast('Záloha nahraná.', snap); } catch (err) { toast('Tenhle soubor není záloha Asistenta. Nic se nezměnilo.'); } }; r.readAsText(file); break; }
   }
 });
 

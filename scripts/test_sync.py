@@ -80,7 +80,7 @@ try:
         B.click('#tabbar [data-view="dnes"]')
         B.fill('[data-form="quick-item"] input[name=title]', "Offline úkol"); B.click('[data-form="quick-item"] button')
         B.wait_for_timeout(3000)
-        B.click('.iconbtn'); assert "Bez spojení" in B.locator('main [data-sync]').inner_text()
+        B.click('.iconbtn'); B.wait_for_function("/Bez spojení/.test((document.querySelector('main [data-sync]')||{}).textContent||'')", timeout=9000)
         # mezitím A upraví stejný záznam (lístek) a B taky: vyhraje pozdější úprava
         nav(A, "listky"); A.locator(".note", has_text="Lístek z telefonu").click(); A.fill('#dlg textarea', "Lístek upravený na A"); A.click('#dlg button.primary'); A.wait_for_timeout(3000)
         B.click('#tabbar [data-view="vice"]'); B.click('.menu [data-view="listky"]'); B.locator(".note", has_text="Lístek z telefonu").click(); B.fill('#dlg textarea', "Lístek upravený na B později"); B.click('#dlg button.primary')

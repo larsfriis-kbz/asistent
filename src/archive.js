@@ -324,7 +324,7 @@ function archiveFromItem(it) {
 }
 
 function viewVice() {
-  const items = [['listky', 'Lístky', 'Barevné poznámky'], ...(S.env === 'prace' ? [['archiv', 'Archiv vysílání', `${Arch.list().length} dílů`]] : []), ['nastaveni', 'Nastavení', 'Motor, vzhled, barvy, projekty']];
+  const items = [['listky', 'Lístky', 'Barevné poznámky'], ['schranka', 'Schránka', inboxNew() ? `${inboxNew()} k roztřídění` : 'Věci na později'], ...(S.env === 'prace' ? [['archiv', 'Archiv vysílání', `${Arch.list().length} dílů`]] : [['m360', 'MEDIUM 360', m360Line()], ['moduly', 'Moduly', 'Fitness, Finance, Books, Recipes a další']]), ['nastaveni', 'Nastavení', 'Motor, vzhled, barvy, projekty']];
   return `<div class="head"><div><h1>Další</h1></div></div>
   <ul class="menu">${items.map(([k, l, d]) => `<li><button type="button" data-action="nav" data-view="${k}"><b>${l}</b><span>${d}</span></button></li>`).join('')}</ul>`;
 }
