@@ -73,7 +73,7 @@ function doPost(e) {
   try {
     var req = JSON.parse(e.postData.contents);
     if (req.op === 'ping' && !req.key) out = { ok: true, app: 'asistent', v: 2 };
-    else if (req.op === 'drop' || req.op === 'health') {
+    else if (req.op === 'drop' || req.op === 'health' || req.op === 'number') {
       var k = String(req.key || '').replace(/\s/g, '');
       out = same_(k, dropKey_()) || same_(k, key_()) ? write_(req) : { ok: false, error: 'auth' };
     }
@@ -97,6 +97,16 @@ function write_(req) {
       var m = /https?:\/\/\S+/.exec(String(req.url || '') || text);
       rec = { id: 'x' + Utilities.getUuid().replace(/-/g, '').slice(0, 12), mod: 'schranka', env: req.prostredi === 'osobni' ? 'osobni' : 'prace', text: text, url: m ? m[0] : '', stav: 'Nové', created: now, u: now };
       st.cols.recs.push(rec);
+    } else if (req.op === 'number') {
+      var name = String(req.nazev || '').trim().toLowerCase(), val = Number(req.hodnota), mk = '';
+      ((st.meta && st.meta.dash && st.meta.dash.manual) || []).forEach(function (x) { if (String(x.name).toLowerCase() === name) mk = x.k; });
+      if (!mk || !isFinite(val) || val < 0) return { ok: false, error: 'empty', zprava: 'Neznámý název čísla nebo chybí hodnota.' };
+      var nid = 'c-' + mk, day = Utilities.formatDate(new Date(), 'Europe/Prague', 'yyyy-MM-dd');
+      rec = null;
+      st.cols.recs.forEach(function (r) { if (r.id === nid) rec = r; });
+      if (!rec) { rec = { id: nid, mod: 'cislo', env: 'prace', k: mk, hist: {}, created: now }; st.cols.recs.push(rec); }
+      rec.hist[day] = [val]; rec.u = now;
+      delete st.tomb.recs[nid];
     } else {
       var d = /^\d{4}-\d{2}-\d{2}$/.test(String(req.date || '')) ? String(req.date) : Utilities.formatDate(new Date(), 'Europe/Prague', 'yyyy-MM-dd');
       var id = 'den-' + d, n = 0;
@@ -134,8 +144,30 @@ function handle_(req) {
     case 'archive': return archive_(req);
     case 'tr-put': return trPut_(req);
     case 'tr-get': return trGet_(req);
+    case 'yt': return yt_(req);
   }
   return { ok: false, error: 'op' };
+}
+
+/* ---------- YouTube: veřejná čísla kanálů a videí. Potřebuje zapnutou službu YouTube Data API v3. ---------- */
+function yt_(req) {
+  if (typeof YouTube === 'undefined') return { ok: false, error: 'yt-off' };
+  var out = { ok: true, channels: {}, videos: {} };
+  (req.channels || []).slice(0, 20).forEach(function (k) {
+    k = String(k);
+    var arg = /^UC[\w-]{22}$/.test(k) ? { id: k } : { forHandle: k.replace(/^@?/, '@') };
+    try {
+      var c = (YouTube.Channels.list('snippet,statistics', arg).items || [])[0];
+      out.channels[k] = c ? { title: c.snippet.title, subs: Number(c.statistics.subscriberCount) || 0, views: Number(c.statistics.viewCount) || 0, videos: Number(c.statistics.videoCount) || 0 } : { missing: true };
+    } catch (e) { out.channels[k] = { error: String((e && e.message) || e).slice(0, 200) }; }
+  });
+  var ids = (req.videos || []).map(String).filter(function (v) { return /^[\w-]{11}$/.test(v); }).slice(0, 200);
+  for (var i = 0; i < ids.length; i += 50) {
+    (YouTube.Videos.list('statistics', { id: ids.slice(i, i + 50).join(',') }).items || []).forEach(function (v) {
+      out.videos[v.id] = { v: Number(v.statistics.viewCount) || 0, l: Number(v.statistics.likeCount) || 0, c: Number(v.statistics.commentCount) || 0 };
+    });
+  }
+  return out;
 }
 
 /* ---------- listy ---------- */

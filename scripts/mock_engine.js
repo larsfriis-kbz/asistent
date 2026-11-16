@@ -31,6 +31,9 @@ const sandbox = {
   ContentService: { createTextOutput: s => ({ s, setMimeType() { return this; } }), MimeType: { JSON: 'json' } },
   Utilities: { getUuid: () => crypto.randomUUID(), formatDate: d => d.toISOString().slice(0, 10) },
   ScriptApp: { getService: () => ({ getUrl: () => `http://localhost:${PORT}/exec` }) },
+  ...(process.env.NO_YT ? {} : { YouTube: {
+    Channels: { list: (p, a) => ({ items: a.forHandle === '@neni' ? [] : [{ snippet: { title: 'Kanál ' + (a.forHandle || a.id) }, statistics: { subscriberCount: '12345', viewCount: '987654', videoCount: '321' } }] }) },
+    Videos: { list: (p, a) => ({ items: a.id.split(',').map(id => ({ id, statistics: { viewCount: '1500', likeCount: '40', commentCount: '7' } })) }) } } }),
   HtmlService: {}, JSON, Date, Math, String, Number, Array, Object, console
 };
 vm.createContext(sandbox);

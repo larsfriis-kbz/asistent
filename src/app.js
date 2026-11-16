@@ -45,13 +45,14 @@ const ENVS = { prace: { name: 'YouTube Jedi Master', sub: 'práce', color: '#D32
 let SEED = null;
 try { SEED = JSON.parse($('#seed-state').textContent || 'null'); } catch (e) { SEED = null; }
 const COLS = ['items', 'notes', 'projects', 'recs'];
-const META = ['capacity', 'colorNames', 'activities', 'game', 'run', 'skip', 'm360'];
+const META = ['capacity', 'colorNames', 'activities', 'game', 'run', 'skip', 'm360', 'dash'];
 
 function seed() {
   const t = today();
   const sat = addDays(mondayOf(t), 5) >= t ? addDays(mondayOf(t), 5) : addDays(mondayOf(t), 12);
-  const base = { v: 2, env: 'prace', theme: 'auto', capacity: 480, colorNames: { prace: {}, osobni: {} }, projects: [], notes: [], items: [], recs: [], m360: { start: '', rules: [], misogi: '', motto: '' }, activities: {}, game: { xp: 0, days: [] }, run: null, skip: { date: t, prace: 0, osobni: 0 }, tomb: { items: {}, notes: {}, projects: {}, recs: {} }, metaU: 0 };
+  const base = { v: 2, env: 'prace', theme: 'auto', capacity: 480, colorNames: { prace: {}, osobni: {} }, projects: [], notes: [], items: [], recs: [], m360: { start: '', rules: [], misogi: '', motto: '' }, dash: { channels: [], manual: [] }, activities: {}, game: { xp: 0, days: [] }, run: null, skip: { date: t, prace: 0, osobni: 0 }, tomb: { items: {}, notes: {}, projects: {}, recs: {} }, metaU: 0 };
   if (SEED) {
+    if (SEED.dash) base.dash = { ...base.dash, ...JSON.parse(JSON.stringify(SEED.dash)) };
     if (SEED.m360) base.m360 = { ...base.m360, ...JSON.parse(JSON.stringify(SEED.m360)) };
     base.projects = JSON.parse(JSON.stringify(SEED.projects || []));
     base.notes = (SEED.notes || []).map(n => ({ ...n, created: Date.now() }));
@@ -512,7 +513,7 @@ const SLICES = [
   ['Základ v prohlížeči', 'Dnes, přepínač prostředí, myšlenka dne, plán dne, spínač, týden s časy, úkoly s opakováním, barevné lístky.', true],
   ['Motor v Googlu a nasazení', 'Data v tvé Google Tabulce, stejný stav na telefonu i počítači, appka na ploše, práce i bez signálu.', false],
   ['Archiv vysílání', 'Import z Notionu, projekty a typy pořadů, účastníci, poznámky a přepisy s časovými značkami.', true],
-  ['YouTube a Herohero čísla', 'Analytika u každého dílu a live dashboard za všechny kanály.', false],
+  ['YouTube a Herohero čísla', 'Odběratelé a zhlédnutí kanálů s vývojem, čísla u dílů, Herohero ručně.', true],
   ['Schránka a Research', 'Jedno místo, kam si věci pošleš z appky i z iPhonu. Z položky uděláš úkol nebo lístek.', true],
   ['More Life moduly', 'MEDIUM 360, Fitness, Finance, Trip Planner, BucketLIST, Journal, Books, Recipes, LEVEL UP.', true]
 ];
@@ -560,8 +561,8 @@ function viewNastaveni() {
   </div>`;
 }
 
-const VIEWS = { dnes: viewDnes, tyden: viewTyden, ukoly: viewUkoly, listky: viewListky, nastaveni: viewNastaveni, archiv: viewArchiv, dil: viewDil, vice: viewVice, schranka: () => viewMod('schranka'), mod: () => viewMod(), moduly: viewModuly, m360: view360, fitness: viewFitness };
-const navList = () => [['dnes', 'Dnes'], ['tyden', 'Týden'], ['ukoly', 'Úkoly'], ['listky', 'Lístky'], ['schranka', 'Schránka'], ...(S.env === 'prace' ? [['archiv', 'Archiv']] : [['m360', 'MEDIUM 360'], ['moduly', 'Moduly']]), ['nastaveni', 'Nastavení']];
+const VIEWS = { dnes: viewDnes, tyden: viewTyden, ukoly: viewUkoly, listky: viewListky, nastaveni: viewNastaveni, archiv: viewArchiv, dil: viewDil, vice: viewVice, schranka: () => viewMod('schranka'), mod: () => viewMod(), moduly: viewModuly, m360: view360, fitness: viewFitness, cisla: viewCisla };
+const navList = () => [['dnes', 'Dnes'], ['tyden', 'Týden'], ['ukoly', 'Úkoly'], ['listky', 'Lístky'], ['schranka', 'Schránka'], ...(S.env === 'prace' ? [['archiv', 'Archiv'], ['cisla', 'Čísla']] : [['m360', 'MEDIUM 360'], ['moduly', 'Moduly']]), ['nastaveni', 'Nastavení']];
 const navOf = v => v === 'dil' ? 'archiv' : (v === 'mod' || v === 'fitness') ? 'moduly' : v;
 
 function applyTheme() {
@@ -578,13 +579,14 @@ function render() {
   const noteN = S.notes.filter(n => n.env === env).length;
   const counts = { dnes: openToday || '', listky: noteN || '', ukoly: S.items.filter(i => i.env === env && !i.done).length || '', archiv: (env === 'prace' && Arch.list().length) || '', schranka: inboxNew() || '' };
   if (env !== 'prace' && (ui.view === 'archiv' || ui.view === 'dil')) ui.view = 'dnes';
+  if (env !== 'prace' && ui.view === 'cisla') ui.view = 'dnes';
   if (env !== 'osobni' && ['m360', 'moduly', 'fitness', 'mod'].includes(ui.view)) ui.view = 'dnes';
   const cur = navOf(ui.view);
   $('#envsw').innerHTML = Object.entries(ENVS).map(([k, e]) => `<button type="button" role="tab" data-action="env" data-env="${k}" aria-selected="${env === k}"><b>${e.name}</b><span>${e.sub}</span></button>`).join('');
   $('#nav').innerHTML = navList().map(([k, l]) => `<button type="button" data-action="nav" data-view="${k}"${cur === k ? ' aria-current="page"' : ''}>${l}${counts[k] ? `<span class="count">${counts[k]}</span>` : ''}</button>`).join('');
   $('#tabbar').innerHTML = [['dnes', 'Dnes'], ['tyden', 'Týden']].map(([k, l]) => `<button type="button" data-action="nav" data-view="${k}"${ui.view === k ? ' aria-current="page"' : ''}>${l}</button>`).join('')
     + `<button type="button" class="plus" data-action="note-new" aria-label="Nový lístek">+</button>`
-    + [['ukoly', 'Úkoly'], ['vice', 'Další']].map(([k, l]) => `<button type="button" data-action="nav" data-view="${k}"${cur === k || (k === 'vice' && ['listky', 'archiv', 'nastaveni', 'schranka', 'm360', 'moduly'].includes(cur)) ? ' aria-current="page"' : ''}>${l}</button>`).join('');
+    + [['ukoly', 'Úkoly'], ['vice', 'Další']].map(([k, l]) => `<button type="button" data-action="nav" data-view="${k}"${cur === k || (k === 'vice' && ['listky', 'archiv', 'nastaveni', 'schranka', 'm360', 'moduly', 'cisla'].includes(cur)) ? ' aria-current="page"' : ''}>${l}</button>`).join('');
   const xp = S.game.xp, st = streak();
   $('#score').innerHTML = `<b>Úroveň ${level()}</b><div class="xpbar" role="img" aria-label="${xp % 100} ze 100 bodů do další úrovně"><i style="width:${xp % 100}%"></i></div>${xp} bodů celkem<br>${st ? `${st} ${plural(st, 'den', 'dny', 'dní')} v řadě` : 'Dnes ještě nic hotového'}<br><span data-sync>${esc(Sync.text())}</span>`;
   $('#tally').classList.toggle('on', !!S.run);

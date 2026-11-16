@@ -244,6 +244,7 @@ function viewDil() {
   <div class="head"><div><h1 id="eptitle" style="font-size:clamp(24px,4vw,34px)">${esc(r.name)}</h1><p>${epDate(r.date)}${r.vid ? `&emsp;<a href="https://www.youtube.com/watch?v=${esc(r.vid)}" target="_blank" rel="noopener">Otevřít na YouTube</a>` : ''}</p></div><p class="hint" id="epsaved" role="status"></p></div>
   <div class="cols">
     <div class="stack">
+      ${r.yt ? `<section class="panel"><h2>YouTube</h2><p>${esc(ytLine(r.yt))}</p></section>` : ''}
       <section class="panel"><h2>Poznámky</h2>
         <textarea data-change="ar-field" data-f="notes" aria-label="Poznámky k dílu" placeholder="Co se v dílu řešilo, důležité momenty, co příště jinak">${esc(r.notes || '')}</textarea>
       </section>
@@ -324,7 +325,7 @@ function archiveFromItem(it) {
 }
 
 function viewVice() {
-  const items = [['listky', 'Lístky', 'Barevné poznámky'], ['schranka', 'Schránka', inboxNew() ? `${inboxNew()} k roztřídění` : 'Věci na později'], ...(S.env === 'prace' ? [['archiv', 'Archiv vysílání', `${Arch.list().length} dílů`]] : [['m360', 'MEDIUM 360', m360Line()], ['moduly', 'Moduly', 'Fitness, Finance, Books, Recipes a další']]), ['nastaveni', 'Nastavení', 'Motor, vzhled, barvy, projekty']];
+  const items = [['listky', 'Lístky', 'Barevné poznámky'], ['schranka', 'Schránka', inboxNew() ? `${inboxNew()} k roztřídění` : 'Věci na později'], ...(S.env === 'prace' ? [['archiv', 'Archiv vysílání', `${Arch.list().length} dílů`], ['cisla', 'Čísla', 'YouTube a Herohero']] : [['m360', 'MEDIUM 360', m360Line()], ['moduly', 'Moduly', 'Fitness, Finance, Books, Recipes a další']]), ['nastaveni', 'Nastavení', 'Motor, vzhled, barvy, projekty']];
   return `<div class="head"><div><h1>Další</h1></div></div>
   <ul class="menu">${items.map(([k, l, d]) => `<li><button type="button" data-action="nav" data-view="${k}"><b>${l}</b><span>${d}</span></button></li>`).join('')}</ul>`;
 }

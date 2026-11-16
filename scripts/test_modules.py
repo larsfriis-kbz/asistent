@@ -36,6 +36,18 @@ try:
         assert A.locator(".rec").count() == 2 and A.get_by_text("Nápad na díl z telefonu").count() == 1
         A.get_by_text("Nápad na díl z telefonu").click(); A.click('[data-action="drop-task"]')
         nav(A, "ukoly"); assert A.get_by_text("Nápad na díl z telefonu", exact=True).count() >= 1
+        # Čísla: kanál přes motor, Herohero ručně a přes klíč pro zkratky
+        nav(A, "cisla"); A.fill('[data-form="num-channel"] input', "https://www.youtube.com/@testkanal"); A.click('[data-form="num-channel"] button')
+        A.wait_for_function("/12.345/.test(document.querySelector('.tiles').textContent)", timeout=8000)
+        assert "Kanál @testkanal" in A.locator(".tiles").inner_text()
+        A.fill('[data-form="num-set"][data-k="m-hh-kbz"] input', "250"); A.click('[data-form="num-set"][data-k="m-hh-kbz"] button')
+        assert "250" in A.locator(".tile", has_text="Herohero KUDY").inner_text()
+        v = post({"op": "yt", "key": KEY, "videos": ["abcdefghijk", "spatne"]}); assert v["ok"] and v["videos"]["abcdefghijk"]["v"] == 1500 and len(v["videos"]) == 1
+        sync_now(A)
+        assert post({"op": "number", "key": KEY, "nazev": "herohero yess tv", "hodnota": 77})["ok"]
+        assert post({"op": "number", "key": KEY, "nazev": "neznámé", "hodnota": 1})["error"] == "empty"
+        sync_now(A); nav(A, "cisla"); assert "77" in A.locator(".tile", has_text="YESS").inner_text()
+        A.screenshot(path=str(root / "build/shot_cisla.png"), full_page=True)
         # osobní prostředí
         A.click('[data-action="env"][data-env="osobni"]')
         nav(A, "m360"); A.click('[data-form="m360-start"] button')

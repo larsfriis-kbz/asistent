@@ -327,3 +327,6 @@ input[type=month]{font:inherit}
 .fold summary h2{display:inline}
 .fold[open] summary{margin-bottom:10px}
 @media(max-width:520px){.weekstrip{gap:3px}.weekstrip button b{font-size:13px;white-space:nowrap}}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px}
+.tile .big{font-size:40px;font-weight:700;line-height:1.1;font-variant-numeric:tabular-nums;margin:6px 0 2px}
+.tile .spark{margin-top:10px}
